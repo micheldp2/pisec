@@ -96,13 +96,12 @@
   .cal-day { min-height: 100px; padding: 4px; background: #fafbfc; border-radius: 4px; font-size: 11px; position: relative; cursor: pointer; transition: all 0.2s; border: 1px solid #e9ecef; overflow: hidden; }
   .cal-day:hover { border-color: #002745; box-shadow: 0 2px 4px rgba(0,39,69,0.1); }
   .cal-day.other-month { opacity: 0.3; }
-  .cal-day.past { background: #c8ccd0; color: #495057; }
+  .cal-day.past { color: #495057; }
   .cal-day.past .day-number { color: #343a40; }
   .cal-day.holiday { background: #fff5f5; border-color: #dc3545; }
   .cal-day.holiday .day-number { color: #dc3545; font-weight: 700; }
   .cal-day.conflict { background: #fff3cd; border-color: #f0ad4e; }
   .cal-day.today { border: 2px solid #002745; background: #e8f4ff; }
-  .cal-day.assembly-day { background: #e8f5e9 !important; border-color: #28a745; }
   .day-number { font-weight: 700; margin-bottom: 4px; font-size: 12px; color: #002745; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
   .cal-event { padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: white; font-weight: 500; position: relative; z-index: 2; }
   .cal-event.holiday-event { background: #dc3545; }
@@ -466,6 +465,14 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="employeeDetailModal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header"><div class="modal-title">Detalhes do Funcionário</div><button class="modal-close" onclick="closeModal('employeeDetailModal')">×</button></div>
+    <div class="modal-body" id="employeeDetailContent"></div>
+    <div class="modal-footer"><button class="btn btn-light" onclick="closeModal('employeeDetailModal')">Fechar</button></div>
+  </div>
+</div>
+
 <div id="mainApp" class="hidden">
   <div class="header">
     <div class="logo-container">
@@ -511,7 +518,6 @@
     <div class="tab" data-tab="projects">Projetos</div>
     <div class="tab" data-tab="trips">Viagens</div>
     <div class="tab" data-tab="employees">Funcionários</div>
-    <div class="tab tab-documents" data-tab="documents">Documentos</div>
     <div class="tab" data-tab="instruments">Instrumentos</div>
     <div class="tab tab-reports" data-tab="reports">Relatórios</div>
   </div>
@@ -605,25 +611,6 @@
         <th>Férias/Indisp.</th>
         <th class="action-edit-employees">Ações</th>
       </tr></thead><tbody id="employeesTable"></tbody></table></div>
-    </div>
-
-    <div class="tab-content" id="tab-documents">
-      <div id="documentsBanner"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 class="section-title" style="margin:0">Documentos</h2>
-        <button class="btn btn-primary action-edit-documents" onclick="openDocModal()">+ Novo</button>
-      </div>
-      <div class="filters">
-        <select id="filterDocEmployee" onchange="renderDocuments()"><option value="">Todos</option></select>
-        <select id="filterDocStatus" onchange="renderDocuments()"><option value="">Todos</option><option value="valid">Válidos</option><option value="expiring">Vencendo (30d)</option><option value="expired">Vencidos</option></select>
-      </div>
-      <div class="stats-grid" id="docStats"></div>
-      <div class="table-container"><table><thead><tr>
-        <th>Funcionário</th><th>Documento</th><th>Nº</th>
-        <th data-sort="expiry">Vencimento <span class="sort-icon"></span></th>
-        <th>Status</th><th>Dias</th>
-        <th class="action-edit-documents">Ações</th>
-      </tr></thead><tbody id="documentsTable"></tbody></table></div>
     </div>
 
     <div class="tab-content" id="tab-instruments">
@@ -999,7 +986,7 @@ function loadData(){
   else seedData();
   renderAll();
 }
-function renderAll(){renderCalendar();renderProjects();renderTrips();renderEmployees();renderDocuments();renderInstruments();renderCheckouts();renderReport();}
+function renderAll(){renderCalendar();renderProjects();renderTrips();renderEmployees();renderInstruments();renderCheckouts();renderReport();}
 
 function seedData(){
   data.users=[{id:'admin_default',username:'michel.paulino@brunnschweiler.com.br',password:'Admin',fullName:'Michel Paulino',email:'michel.paulino@brunnschweiler.com.br',role:'Administrador',isDefault:true,permissions:ALL_PERMISSIONS.map(p=>p.key)}];
@@ -1091,7 +1078,7 @@ function seedData(){
 
 function notify(msg,type='success'){const n=document.createElement('div');n.className='notification '+type;n.textContent=msg;document.body.appendChild(n);setTimeout(()=>n.remove(),3000);}
 
-document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('tab-'+t.dataset.tab).classList.add('active');if(t.dataset.tab==='calendar')renderCalendar();if(t.dataset.tab==='projects')renderProjects();if(t.dataset.tab==='trips')renderTrips();if(t.dataset.tab==='employees')renderEmployees();if(t.dataset.tab==='documents')renderDocuments();if(t.dataset.tab==='instruments'){renderInstruments();renderCheckouts();}if(t.dataset.tab==='reports')renderReport();});});
+document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('tab-'+t.dataset.tab).classList.add('active');if(t.dataset.tab==='calendar')renderCalendar();if(t.dataset.tab==='projects')renderProjects();if(t.dataset.tab==='trips')renderTrips();if(t.dataset.tab==='employees')renderEmployees();if(t.dataset.tab==='instruments'){renderInstruments();renderCheckouts();}if(t.dataset.tab==='reports')renderReport();});});
 document.querySelectorAll('.sub-tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.sub-tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.sub-content').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('sub-'+t.dataset.sub).classList.add('active');});});
 
 function parseDateValue(str){
@@ -1190,8 +1177,8 @@ function renderCalendar(){
       if(filterCli&&p.client!==filterCli)return;
       if(p.hasAsm&&p.asmStart&&p.asmEnd&&dateStr>=p.asmStart&&dateStr<=p.asmEnd){
         const asmText=document.createElement('div');
-        asmText.style.cssText='padding:2px 4px;background:#e8f5e9;border-radius:3px;margin-bottom:2px;font-size:9px;color:#28a745;font-weight:600';
-        asmText.textContent=`Mont. ${p.op} - ${p.client}`;
+        asmText.style.cssText='padding:2px 4px;border-radius:3px;margin-bottom:2px;font-size:9px;color:#002745;font-weight:600';
+        asmText.textContent=`Mont. ${p.client}`;
         cell.appendChild(asmText);
       }
     });
@@ -1227,7 +1214,7 @@ function renderCalendar(){
       label.title=`${trip.type}: ${proj?.client||''} (${emp.name}) ${trip.start} a ${trip.end}`;
       bar.appendChild(label);
       container.appendChild(bar);
-      container.onclick=(e)=>{e.stopPropagation();showDayDetail(dateStr);};
+      container.onclick=(e)=>{e.stopPropagation();showEmployeeDetails(emp.id);};
       cell.appendChild(container);
     });
     
@@ -1327,7 +1314,7 @@ async function saveTrip(){if(!requirePermission('edit_trips','salvar viagens'))r
 function editTrip(id){openTripModal(id);}
 async function deleteTrip(id){if(!requirePermission('edit_trips','excluir viagens'))return;if(!confirm('Excluir viagem?'))return;data.trips=data.trips.filter(t=>t.id!==id);saveDataLocal();await saveToServer();renderAll();notify('Excluída');}
 
-function renderEmployees(){if(!hasPerm('view_employees')){document.getElementById('employeesTable').innerHTML='<tr><td colspan="6" class="empty-state">Sem permissão</td></tr>';return;}const tbody=document.getElementById('employeesTable');if(!data.employees.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state"><div class="empty-state-icon">👥</div>Nenhum funcionário</td></tr>';return;}tbody.innerHTML=data.employees.map(e=>{const absCount=(e.absences||[]).length;const actionsHtml=hasPerm('edit_employees')?`<td><button class="btn btn-info btn-sm" onclick="editEmployee('${e.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="deleteEmployee('${e.id}')">Excluir</button></td>`:'<td>-</td>';return `<tr><td><div style="width:24px;height:24px;border-radius:50%;background:${e.color}"></div></td><td><strong>${e.name}</strong><br><small style="color:#6c757d">${e.email||''}</small></td><td>${e.role}</td><td>${e.phone||'-'}</td><td><span class="badge badge-pending">${absCount} registro(s)</span></td>${actionsHtml}</tr>`;}).join('');}
+function renderEmployees(){if(!hasPerm('view_employees')){document.getElementById('employeesTable').innerHTML='<tr><td colspan="6" class="empty-state">Sem permissão</td></tr>';return;}const tbody=document.getElementById('employeesTable');if(!data.employees.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state"><div class="empty-state-icon">👥</div>Nenhum funcionário</td></tr>';return;}tbody.innerHTML=data.employees.map(e=>{const absCount=(e.absences||[]).length;const actionsHtml=hasPerm('edit_employees')?`<td><button class="btn btn-info btn-sm" onclick="showEmployeeDetails('${e.id}')">Detalhes</button><button class="btn btn-danger btn-sm" onclick="deleteEmployee('${e.id}')">Excluir</button></td>`:'<td>-</td>';return `<tr><td><div style="width:24px;height:24px;border-radius:50%;background:${e.color}"></div></td><td><strong>${e.name}</strong><br><small style="color:#6c757d">${e.email||''}</small></td><td>${e.role}</td><td>${e.phone||'-'}</td><td><span class="badge badge-pending">${absCount} registro(s)</span></td>${actionsHtml}</tr>`;}).join('');}
 function addDays(dateStr,days){const d=new Date(dateStr);d.setDate(d.getDate()+days);return d.toISOString().split('T')[0];}
 function openEmployeeModal(id){if(!requirePermission('edit_employees','editar funcionários'))return;editingId=id||null;document.getElementById('employeeModalTitle').textContent=id?'Editar Funcionário':'Novo Funcionário';tempAbsences=[];const cp=document.getElementById('colorPicker');cp.innerHTML=EMPLOYEE_COLORS.map(c=>`<div class="color-option ${c===selectedColor?'selected':''}" style="background:${c}" data-color="${c}" onclick="selectColor('${c}')"></div>`).join('');if(id){const e=data.employees.find(x=>x.id===id);document.getElementById('empName').value=e.name;document.getElementById('empRole').value=e.role;document.getElementById('empPhone').value=e.phone||'';document.getElementById('empCpf').value=e.cpf||'';document.getElementById('empEmail').value=e.email||'';selectedColor=e.color;tempAbsences=[...(e.absences||[])];cp.querySelectorAll('.color-option').forEach(el=>el.classList.toggle('selected',el.dataset.color===e.color));}else{['empName','empRole','empPhone','empCpf','empEmail'].forEach(id=>document.getElementById(id).value='');const used=data.employees.map(e=>e.color);selectedColor=EMPLOYEE_COLORS.find(c=>!used.includes(c))||EMPLOYEE_COLORS[data.employees.length%EMPLOYEE_COLORS.length];cp.querySelectorAll('.color-option').forEach(el=>el.classList.toggle('selected',el.dataset.color===selectedColor));}renderTempAbsences();document.getElementById('employeeModal').classList.add('active');}
 function selectColor(c){selectedColor=c;document.querySelectorAll('.color-option').forEach(el=>el.classList.toggle('selected',el.dataset.color===c));}
@@ -1335,7 +1322,7 @@ function addAbsence(){const s=document.getElementById('absStart').value;const e=
 function removeAbsence(id){tempAbsences=tempAbsences.filter(a=>a.id!==id);renderTempAbsences();}
 function renderTempAbsences(){const l=document.getElementById('absList');if(!tempAbsences.length){l.innerHTML='<div style="color:#6c757d;font-size:12px;padding:8px">Nenhum registro</div>';return;}l.innerHTML=tempAbsences.map(a=>`<div class="doc-item"><span><strong>${a.type}</strong>: ${a.start} → ${a.end}</span><button class="btn btn-danger btn-sm" onclick="removeAbsence('${a.id}')">✕</button></div>`).join('');}
 async function saveEmployee(){if(!requirePermission('edit_employees','salvar funcionários'))return;const email=document.getElementById('empEmail').value.trim();const cpf=document.getElementById('empCpf').value;const phone=document.getElementById('empPhone').value;if(email&&!validateEmail(email)){notify('E-mail inválido','error');return;}if(cpf&&!validateCpf(cpf)){notify('CPF inválido','error');return;}if(phone&&!validatePhone(phone)){notify('Telefone inválido','error');return;}const emp={id:editingId||Date.now().toString(),name:document.getElementById('empName').value,role:document.getElementById('empRole').value,phone:phone,cpf:cpf,email:email,color:selectedColor,absences:tempAbsences};if(!emp.name){notify('Nome obrigatório','error');return;}if(editingId){const idx=data.employees.findIndex(e=>e.id===editingId);data.employees[idx]=emp;}else{data.employees.push(emp);}saveDataLocal();await saveToServer();closeModal('employeeModal');renderAll();notify('Funcionário salvo');}
-function editEmployee(id){openEmployeeModal(id);}
+function showEmployeeDetails(empId){const emp=data.employees.find(e=>e.id===empId);if(!emp)return;const docs=data.documents.filter(d=>d.employeeId===empId);let html=`<div style="margin-bottom:16px"><h3 style="color:#002745;margin-bottom:8px">${emp.name}</h3><p><strong>Cargo:</strong> ${emp.role||'-'}</p><p><strong>E-mail:</strong> ${emp.email||'-'}</p><p><strong>Telefone:</strong> ${emp.phone||'-'}</p><p><strong>CPF:</strong> ${emp.cpf||'-'}</p></div>`;html+='<h4 style="color:#002745;margin:16px 0 8px">Documentos</h4>';if(docs.length===0){html+='<p style="color:#6c757d">Nenhum documento cadastrado.</p>';}else{html+='<div class="doc-list">';docs.forEach(d=>{const today=new Date().toISOString().split('T')[0];const daysLeft=d.expiry?Math.ceil((new Date(d.expiry)-new Date(today))/(1000*60*60*24)):null;const statusBadge=d.expiry&&d.expiry<today?'<span class="badge badge-expired">Vencido</span>':d.expiry&&daysLeft<=30?'<span class="badge badge-warning">Vencendo</span>':'<span class="badge badge-active">Válido</span>';const daysText=daysLeft!==null?(daysLeft<0?`${Math.abs(daysLeft)} dias atrás`:`${daysLeft} dias`):'-';html+=`<div class="doc-item"><div><strong>${d.type}</strong><br><small>Nº: ${d.number||'-'}</small><br><small>Vence: ${d.expiry||'-'} (${daysText})</small></div>${statusBadge}</div>`;});html+='</div>';}document.getElementById('employeeDetailContent').innerHTML=html;document.getElementById('employeeDetailModal').classList.add('active');}
 async function deleteEmployee(id){if(!requirePermission('edit_employees','excluir funcionários'))return;if(!confirm('Excluir funcionário?'))return;data.employees=data.employees.filter(e=>e.id!==id);saveDataLocal();await saveToServer();renderAll();notify('Excluído');}
 
 function renderDocuments(){if(!hasPerm('view_documents')){document.getElementById('documentsTable').innerHTML='<tr><td colspan="7" class="empty-state">Sem permissão</td></tr>';return;}const tbody=document.getElementById('documentsTable');const filterEmp=document.getElementById('filterDocEmployee').value;const filterStatus=document.getElementById('filterDocStatus').value;const today=new Date().toISOString().split('T')[0];let docs=data.documents.slice();if(filterEmp)docs=docs.filter(d=>d.employeeId===filterEmp);docs=docs.map(d=>{const emp=data.employees.find(e=>e.id===d.employeeId);const daysLeft=d.expiry?Math.ceil((new Date(d.expiry)-new Date(today))/(1000*60*60*24)):null;let status='valid';if(d.expiry&&d.expiry<today)status='expired';else if(d.expiry&&daysLeft<=30)status='expiring';return{...d,empName:emp?.name||'-',status,daysLeft};});if(filterStatus)docs=docs.filter(d=>d.status===filterStatus);docs.sort((a,b)=>(a.expiry||'').localeCompare(b.expiry||''));const valid=docs.filter(d=>d.status==='valid').length;const expiring=docs.filter(d=>d.status==='expiring').length;const expired=docs.filter(d=>d.status==='expired').length;document.getElementById('docStats').innerHTML=`<div class="stat-card"><div class="stat-label">Válidos</div><div class="stat-value" style="color:#28a745">${valid}</div></div><div class="stat-card"><div class="stat-label">Vencendo</div><div class="stat-value" style="color:#f0ad4e">${expiring}</div></div><div class="stat-card"><div class="stat-label">Vencidos</div><div class="stat-value" style="color:#dc3545">${expired}</div></div><div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${docs.length}</div></div>`;if(!docs.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state"><div class="empty-state-icon"></div>Nenhum documento</td></tr>';return;}tbody.innerHTML=docs.map(d=>{const statusBadge=d.status==='expired'?'<span class="badge badge-expired">Vencido</span>':d.status==='expiring'?'<span class="badge badge-warning">Vencendo</span>':'<span class="badge badge-active">Válido</span>';const daysText=d.daysLeft!==null?(d.daysLeft<0?`${Math.abs(d.daysLeft)} dias atrás`:`${d.daysLeft} dias`):'-';const actionsHtml=hasPerm('edit_documents')?`<td><button class="btn btn-info btn-sm" onclick="editDocument('${d.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="deleteDocument('${d.id}')">Excluir</button></td>`:'<td>-</td>';return `<tr><td><strong>${d.empName}</strong></td><td>${d.type}</td><td>${d.number||'-'}</td><td>${d.expiry||'-'}</td><td>${statusBadge}</td><td>${daysText}</td>${actionsHtml}</tr>`;}).join('');}
