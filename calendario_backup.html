@@ -96,12 +96,13 @@
   .cal-day { min-height: 100px; padding: 4px; background: #fafbfc; border-radius: 4px; font-size: 11px; position: relative; cursor: pointer; transition: all 0.2s; border: 1px solid #e9ecef; overflow: hidden; }
   .cal-day:hover { border-color: #002745; box-shadow: 0 2px 4px rgba(0,39,69,0.1); }
   .cal-day.other-month { opacity: 0.3; }
-  .cal-day.past { color: #495057; }
+  .cal-day.past { background: #c8ccd0; color: #495057; }
   .cal-day.past .day-number { color: #343a40; }
   .cal-day.holiday { background: #fff5f5; border-color: #dc3545; }
   .cal-day.holiday .day-number { color: #dc3545; font-weight: 700; }
   .cal-day.conflict { background: #fff3cd; border-color: #f0ad4e; }
   .cal-day.today { border: 2px solid #002745; background: #e8f4ff; }
+  .cal-day.assembly-day { background: #e8f5e9 !important; border-color: #28a745; }
   .day-number { font-weight: 700; margin-bottom: 4px; font-size: 12px; color: #002745; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
   .cal-event { padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: white; font-weight: 500; position: relative; z-index: 2; }
   .cal-event.holiday-event { background: #dc3545; }
@@ -465,14 +466,6 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="employeeDetailModal">
-  <div class="modal" style="max-width:700px">
-    <div class="modal-header"><div class="modal-title">Detalhes do Funcionário</div><button class="modal-close" onclick="closeModal('employeeDetailModal')">×</button></div>
-    <div class="modal-body" id="employeeDetailContent"></div>
-    <div class="modal-footer"><button class="btn btn-light" onclick="closeModal('employeeDetailModal')">Fechar</button></div>
-  </div>
-</div>
-
 <div id="mainApp" class="hidden">
   <div class="header">
     <div class="logo-container">
@@ -518,6 +511,7 @@
     <div class="tab" data-tab="projects">Projetos</div>
     <div class="tab" data-tab="trips">Viagens</div>
     <div class="tab" data-tab="employees">Funcionários</div>
+    <div class="tab tab-documents" data-tab="documents">Documentos</div>
     <div class="tab" data-tab="instruments">Instrumentos</div>
     <div class="tab tab-reports" data-tab="reports">Relatórios</div>
   </div>
@@ -528,13 +522,14 @@
         <div class="legend-item"><div class="legend-color" style="background:#e8f5e9;border:1px solid #28a745"></div>Dia com montagem</div>
         <div class="legend-item"><div class="legend-color" style="background:#dc3545"></div>Feriado</div>
         <div class="legend-item"><div class="legend-color" style="background:#6c757d"></div>Indisponível</div>
+        <div class="legend-item"><div class="legend-color" style="background:#c8ccd0"></div>Dia passado</div>
         <div class="legend-item"><div class="legend-color" style="background:#f0ad4e"></div>Conflito</div>
       </div>
       <div id="employeeLegend" class="legend"></div>
       <div id="conflictAlerts"></div>
       <div class="calendar-header">
         <div class="calendar-nav">
-          <button class="btn btn-light" onclick="changeMonth(-1)">◀</button>
+          <button class="btn btn-light" onclick="changeMonth(-1)"></button>
           <div class="calendar-title" id="calendarTitle"></div>
           <button class="btn btn-light" onclick="changeMonth(1)">▶</button>
           <button class="btn btn-primary" onclick="goToToday()">Hoje</button>
@@ -542,12 +537,13 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <select id="filterEmployee" onchange="renderCalendar()" style="padding:8px;background:white;border:1px solid #ced4da;border-radius:6px"><option value="">Todos os funcionários</option></select>
           <select id="filterClient" onchange="renderCalendar()" style="padding:8px;background:white;border:1px solid #ced4da;border-radius:6px"><option value="">Todos os clientes</option></select>
-          <select id="calendarViewMode" onchange="changeCalendarView()" style="padding:8px;background:white;border:1px solid #ced4da;border-radius:6px">
-            <option value="month">Por Mês</option>
-            <option value="3months">Próximos 3 Meses</option>
-            <option value="6months">Próximos 6 Meses</option>
-            <option value="year">Por Ano</option>
+          <select id="calPdfPeriod" style="padding:8px;background:white;border:1px solid #ced4da;border-radius:6px">
+            <option value="3">Próximos 3 meses</option>
+            <option value="6">Próximos 6 meses</option>
+            <option value="12">Próximos 12 meses</option>
+            <option value="year">Ano atual</option>
           </select>
+          <button class="btn btn-pdf" onclick="generateCalendarPDF()">PDF Calendário</button>
         </div>
       </div>
       <div class="calendar-grid" id="calendarGrid"></div>
@@ -574,6 +570,7 @@
         <h2 class="section-title" style="margin:0">Viagens</h2>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary action-edit-trips" onclick="openTripModal()">+ Nova</button>
+          <button class="btn btn-pdf" onclick="generate90DaysPDF()">PDF 90 dias</button>
         </div>
       </div>
       <div class="filters">
@@ -610,6 +607,25 @@
       </tr></thead><tbody id="employeesTable"></tbody></table></div>
     </div>
 
+    <div class="tab-content" id="tab-documents">
+      <div id="documentsBanner"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 class="section-title" style="margin:0">Documentos</h2>
+        <button class="btn btn-primary action-edit-documents" onclick="openDocModal()">+ Novo</button>
+      </div>
+      <div class="filters">
+        <select id="filterDocEmployee" onchange="renderDocuments()"><option value="">Todos</option></select>
+        <select id="filterDocStatus" onchange="renderDocuments()"><option value="">Todos</option><option value="valid">Válidos</option><option value="expiring">Vencendo (30d)</option><option value="expired">Vencidos</option></select>
+      </div>
+      <div class="stats-grid" id="docStats"></div>
+      <div class="table-container"><table><thead><tr>
+        <th>Funcionário</th><th>Documento</th><th>Nº</th>
+        <th data-sort="expiry">Vencimento <span class="sort-icon"></span></th>
+        <th>Status</th><th>Dias</th>
+        <th class="action-edit-documents">Ações</th>
+      </tr></thead><tbody id="documentsTable"></tbody></table></div>
+    </div>
+
     <div class="tab-content" id="tab-instruments">
       <h2 class="section-title">Instrumentos</h2>
       <div class="sub-tabs">
@@ -621,6 +637,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <h3 class="section-title" style="margin:0">Cadastro</h3>
           <div style="display:flex;gap:8px">
+            <button class="btn btn-pdf" onclick="generateInstrumentsPDF()">PDF Instrumentos</button>
             <button class="btn btn-warning" onclick="openCalibRequestModal()">Solicitar Calibração</button>
             <button class="btn btn-primary action-edit-instruments" onclick="openInstrumentModal()">+ Novo</button>
           </div>
@@ -687,6 +704,7 @@
         <input type="date" id="reportTo" onchange="renderReport()" style="display:none">
         <select id="reportEmployee" onchange="renderReport()"><option value="">Todos funcionários</option></select>
         <select id="reportClient" onchange="renderReport()"><option value="">Todos clientes</option></select>
+        <button class="btn btn-primary" onclick="generateReportPDF()" style="margin-left:auto">Gerar PDF</button>
       </div>
       <div id="reportContent"></div>
     </div>
@@ -981,7 +999,7 @@ function loadData(){
   else seedData();
   renderAll();
 }
-function renderAll(){renderCalendar();renderProjects();renderTrips();renderEmployees();renderInstruments();renderCheckouts();renderReport();}
+function renderAll(){renderCalendar();renderProjects();renderTrips();renderEmployees();renderDocuments();renderInstruments();renderCheckouts();renderReport();}
 
 function seedData(){
   data.users=[{id:'admin_default',username:'michel.paulino@brunnschweiler.com.br',password:'Admin',fullName:'Michel Paulino',email:'michel.paulino@brunnschweiler.com.br',role:'Administrador',isDefault:true,permissions:ALL_PERMISSIONS.map(p=>p.key)}];
@@ -1073,7 +1091,7 @@ function seedData(){
 
 function notify(msg,type='success'){const n=document.createElement('div');n.className='notification '+type;n.textContent=msg;document.body.appendChild(n);setTimeout(()=>n.remove(),3000);}
 
-document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('tab-'+t.dataset.tab).classList.add('active');if(t.dataset.tab==='calendar')renderCalendar();if(t.dataset.tab==='projects')renderProjects();if(t.dataset.tab==='trips')renderTrips();if(t.dataset.tab==='employees')renderEmployees();if(t.dataset.tab==='instruments'){renderInstruments();renderCheckouts();}if(t.dataset.tab==='reports')renderReport();});});
+document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('tab-'+t.dataset.tab).classList.add('active');if(t.dataset.tab==='calendar')renderCalendar();if(t.dataset.tab==='projects')renderProjects();if(t.dataset.tab==='trips')renderTrips();if(t.dataset.tab==='employees')renderEmployees();if(t.dataset.tab==='documents')renderDocuments();if(t.dataset.tab==='instruments'){renderInstruments();renderCheckouts();}if(t.dataset.tab==='reports')renderReport();});});
 document.querySelectorAll('.sub-tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.sub-tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.sub-content').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('sub-'+t.dataset.sub).classList.add('active');});});
 
 function parseDateValue(str){
@@ -1172,8 +1190,8 @@ function renderCalendar(){
       if(filterCli&&p.client!==filterCli)return;
       if(p.hasAsm&&p.asmStart&&p.asmEnd&&dateStr>=p.asmStart&&dateStr<=p.asmEnd){
         const asmText=document.createElement('div');
-        asmText.style.cssText='padding:2px 4px;border-radius:3px;margin-bottom:2px;font-size:9px;color:#002745;font-weight:600';
-        asmText.textContent=`Mont. ${p.client}`;
+        asmText.style.cssText='padding:2px 4px;background:#e8f5e9;border-radius:3px;margin-bottom:2px;font-size:9px;color:#28a745;font-weight:600';
+        asmText.textContent=`Mont. ${p.op} - ${p.client}`;
         cell.appendChild(asmText);
       }
     });
@@ -1209,7 +1227,7 @@ function renderCalendar(){
       label.title=`${trip.type}: ${proj?.client||''} (${emp.name}) ${trip.start} a ${trip.end}`;
       bar.appendChild(label);
       container.appendChild(bar);
-      container.onclick=(e)=>{e.stopPropagation();showEmployeeDetails(emp.id);};
+      container.onclick=(e)=>{e.stopPropagation();showDayDetail(dateStr);};
       cell.appendChild(container);
     });
     
@@ -1309,7 +1327,7 @@ async function saveTrip(){if(!requirePermission('edit_trips','salvar viagens'))r
 function editTrip(id){openTripModal(id);}
 async function deleteTrip(id){if(!requirePermission('edit_trips','excluir viagens'))return;if(!confirm('Excluir viagem?'))return;data.trips=data.trips.filter(t=>t.id!==id);saveDataLocal();await saveToServer();renderAll();notify('Excluída');}
 
-function renderEmployees(){if(!hasPerm('view_employees')){document.getElementById('employeesTable').innerHTML='<tr><td colspan="6" class="empty-state">Sem permissão</td></tr>';return;}const tbody=document.getElementById('employeesTable');if(!data.employees.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state"><div class="empty-state-icon">👥</div>Nenhum funcionário</td></tr>';return;}tbody.innerHTML=data.employees.map(e=>{const absCount=(e.absences||[]).length;const actionsHtml=hasPerm('edit_employees')?`<td><button class="btn btn-info btn-sm" onclick="showEmployeeDetails('${e.id}')">Detalhes</button><button class="btn btn-danger btn-sm" onclick="deleteEmployee('${e.id}')">Excluir</button></td>`:'<td>-</td>';return `<tr><td><div style="width:24px;height:24px;border-radius:50%;background:${e.color}"></div></td><td><strong>${e.name}</strong><br><small style="color:#6c757d">${e.email||''}</small></td><td>${e.role}</td><td>${e.phone||'-'}</td><td><span class="badge badge-pending">${absCount} registro(s)</span></td>${actionsHtml}</tr>`;}).join('');}
+function renderEmployees(){if(!hasPerm('view_employees')){document.getElementById('employeesTable').innerHTML='<tr><td colspan="6" class="empty-state">Sem permissão</td></tr>';return;}const tbody=document.getElementById('employeesTable');if(!data.employees.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state"><div class="empty-state-icon">👥</div>Nenhum funcionário</td></tr>';return;}tbody.innerHTML=data.employees.map(e=>{const absCount=(e.absences||[]).length;const actionsHtml=hasPerm('edit_employees')?`<td><button class="btn btn-info btn-sm" onclick="editEmployee('${e.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="deleteEmployee('${e.id}')">Excluir</button></td>`:'<td>-</td>';return `<tr><td><div style="width:24px;height:24px;border-radius:50%;background:${e.color}"></div></td><td><strong>${e.name}</strong><br><small style="color:#6c757d">${e.email||''}</small></td><td>${e.role}</td><td>${e.phone||'-'}</td><td><span class="badge badge-pending">${absCount} registro(s)</span></td>${actionsHtml}</tr>`;}).join('');}
 function addDays(dateStr,days){const d=new Date(dateStr);d.setDate(d.getDate()+days);return d.toISOString().split('T')[0];}
 function openEmployeeModal(id){if(!requirePermission('edit_employees','editar funcionários'))return;editingId=id||null;document.getElementById('employeeModalTitle').textContent=id?'Editar Funcionário':'Novo Funcionário';tempAbsences=[];const cp=document.getElementById('colorPicker');cp.innerHTML=EMPLOYEE_COLORS.map(c=>`<div class="color-option ${c===selectedColor?'selected':''}" style="background:${c}" data-color="${c}" onclick="selectColor('${c}')"></div>`).join('');if(id){const e=data.employees.find(x=>x.id===id);document.getElementById('empName').value=e.name;document.getElementById('empRole').value=e.role;document.getElementById('empPhone').value=e.phone||'';document.getElementById('empCpf').value=e.cpf||'';document.getElementById('empEmail').value=e.email||'';selectedColor=e.color;tempAbsences=[...(e.absences||[])];cp.querySelectorAll('.color-option').forEach(el=>el.classList.toggle('selected',el.dataset.color===e.color));}else{['empName','empRole','empPhone','empCpf','empEmail'].forEach(id=>document.getElementById(id).value='');const used=data.employees.map(e=>e.color);selectedColor=EMPLOYEE_COLORS.find(c=>!used.includes(c))||EMPLOYEE_COLORS[data.employees.length%EMPLOYEE_COLORS.length];cp.querySelectorAll('.color-option').forEach(el=>el.classList.toggle('selected',el.dataset.color===selectedColor));}renderTempAbsences();document.getElementById('employeeModal').classList.add('active');}
 function selectColor(c){selectedColor=c;document.querySelectorAll('.color-option').forEach(el=>el.classList.toggle('selected',el.dataset.color===c));}
@@ -1317,7 +1335,7 @@ function addAbsence(){const s=document.getElementById('absStart').value;const e=
 function removeAbsence(id){tempAbsences=tempAbsences.filter(a=>a.id!==id);renderTempAbsences();}
 function renderTempAbsences(){const l=document.getElementById('absList');if(!tempAbsences.length){l.innerHTML='<div style="color:#6c757d;font-size:12px;padding:8px">Nenhum registro</div>';return;}l.innerHTML=tempAbsences.map(a=>`<div class="doc-item"><span><strong>${a.type}</strong>: ${a.start} → ${a.end}</span><button class="btn btn-danger btn-sm" onclick="removeAbsence('${a.id}')">✕</button></div>`).join('');}
 async function saveEmployee(){if(!requirePermission('edit_employees','salvar funcionários'))return;const email=document.getElementById('empEmail').value.trim();const cpf=document.getElementById('empCpf').value;const phone=document.getElementById('empPhone').value;if(email&&!validateEmail(email)){notify('E-mail inválido','error');return;}if(cpf&&!validateCpf(cpf)){notify('CPF inválido','error');return;}if(phone&&!validatePhone(phone)){notify('Telefone inválido','error');return;}const emp={id:editingId||Date.now().toString(),name:document.getElementById('empName').value,role:document.getElementById('empRole').value,phone:phone,cpf:cpf,email:email,color:selectedColor,absences:tempAbsences};if(!emp.name){notify('Nome obrigatório','error');return;}if(editingId){const idx=data.employees.findIndex(e=>e.id===editingId);data.employees[idx]=emp;}else{data.employees.push(emp);}saveDataLocal();await saveToServer();closeModal('employeeModal');renderAll();notify('Funcionário salvo');}
-function showEmployeeDetails(empId){const emp=data.employees.find(e=>e.id===empId);if(!emp)return;const docs=data.documents.filter(d=>d.employeeId===empId);let html=`<div style="margin-bottom:16px"><h3 style="color:#002745;margin-bottom:8px">${emp.name}</h3><p><strong>Cargo:</strong> ${emp.role||'-'}</p><p><strong>E-mail:</strong> ${emp.email||'-'}</p><p><strong>Telefone:</strong> ${emp.phone||'-'}</p><p><strong>CPF:</strong> ${emp.cpf||'-'}</p></div>`;html+='<h4 style="color:#002745;margin:16px 0 8px">Documentos</h4>';if(docs.length===0){html+='<p style="color:#6c757d">Nenhum documento cadastrado.</p>';}else{html+='<div class="doc-list">';docs.forEach(d=>{const today=new Date().toISOString().split('T')[0];const daysLeft=d.expiry?Math.ceil((new Date(d.expiry)-new Date(today))/(1000*60*60*24)):null;const statusBadge=d.expiry&&d.expiry<today?'<span class="badge badge-expired">Vencido</span>':d.expiry&&daysLeft<=30?'<span class="badge badge-warning">Vencendo</span>':'<span class="badge badge-active">Válido</span>';const daysText=daysLeft!==null?(daysLeft<0?`${Math.abs(daysLeft)} dias atrás`:`${daysLeft} dias`):'-';html+=`<div class="doc-item"><div><strong>${d.type}</strong><br><small>Nº: ${d.number||'-'}</small><br><small>Vence: ${d.expiry||'-'} (${daysText})</small></div>${statusBadge}</div>`;});html+='</div>';}document.getElementById('employeeDetailContent').innerHTML=html;document.getElementById('employeeDetailModal').classList.add('active');}
+function editEmployee(id){openEmployeeModal(id);}
 async function deleteEmployee(id){if(!requirePermission('edit_employees','excluir funcionários'))return;if(!confirm('Excluir funcionário?'))return;data.employees=data.employees.filter(e=>e.id!==id);saveDataLocal();await saveToServer();renderAll();notify('Excluído');}
 
 function renderDocuments(){if(!hasPerm('view_documents')){document.getElementById('documentsTable').innerHTML='<tr><td colspan="7" class="empty-state">Sem permissão</td></tr>';return;}const tbody=document.getElementById('documentsTable');const filterEmp=document.getElementById('filterDocEmployee').value;const filterStatus=document.getElementById('filterDocStatus').value;const today=new Date().toISOString().split('T')[0];let docs=data.documents.slice();if(filterEmp)docs=docs.filter(d=>d.employeeId===filterEmp);docs=docs.map(d=>{const emp=data.employees.find(e=>e.id===d.employeeId);const daysLeft=d.expiry?Math.ceil((new Date(d.expiry)-new Date(today))/(1000*60*60*24)):null;let status='valid';if(d.expiry&&d.expiry<today)status='expired';else if(d.expiry&&daysLeft<=30)status='expiring';return{...d,empName:emp?.name||'-',status,daysLeft};});if(filterStatus)docs=docs.filter(d=>d.status===filterStatus);docs.sort((a,b)=>(a.expiry||'').localeCompare(b.expiry||''));const valid=docs.filter(d=>d.status==='valid').length;const expiring=docs.filter(d=>d.status==='expiring').length;const expired=docs.filter(d=>d.status==='expired').length;document.getElementById('docStats').innerHTML=`<div class="stat-card"><div class="stat-label">Válidos</div><div class="stat-value" style="color:#28a745">${valid}</div></div><div class="stat-card"><div class="stat-label">Vencendo</div><div class="stat-value" style="color:#f0ad4e">${expiring}</div></div><div class="stat-card"><div class="stat-label">Vencidos</div><div class="stat-value" style="color:#dc3545">${expired}</div></div><div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${docs.length}</div></div>`;if(!docs.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state"><div class="empty-state-icon"></div>Nenhum documento</td></tr>';return;}tbody.innerHTML=docs.map(d=>{const statusBadge=d.status==='expired'?'<span class="badge badge-expired">Vencido</span>':d.status==='expiring'?'<span class="badge badge-warning">Vencendo</span>':'<span class="badge badge-active">Válido</span>';const daysText=d.daysLeft!==null?(d.daysLeft<0?`${Math.abs(d.daysLeft)} dias atrás`:`${d.daysLeft} dias`):'-';const actionsHtml=hasPerm('edit_documents')?`<td><button class="btn btn-info btn-sm" onclick="editDocument('${d.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="deleteDocument('${d.id}')">Excluir</button></td>`:'<td>-</td>';return `<tr><td><strong>${d.empName}</strong></td><td>${d.type}</td><td>${d.number||'-'}</td><td>${d.expiry||'-'}</td><td>${statusBadge}</td><td>${daysText}</td>${actionsHtml}</tr>`;}).join('');}
@@ -1538,9 +1556,157 @@ function renderClientsReport(){
   },100);
 }
 
+async function generateReportPDF(){
+  if(!requirePermission('generate_pdf','gerar PDF'))return;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a3');
+  const type=document.getElementById('reportType').value;
+  const periodLabel=document.getElementById('reportPeriod').selectedOptions[0].text;
+  const serviceType=document.getElementById('reportServiceType').value;
+  const serviceLabel=serviceType?` - ${STAGE_LABELS[serviceType]}`:'';
+  const today=new Date().toISOString().split('T')[0];
+  doc.setFillColor(0,39,69);doc.rect(0,0,420,20,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont(undefined,'bold');
+  doc.text(`PISEC - Relatório ${type.toUpperCase()}${serviceLabel}`,14,12);
+  doc.setFontSize(9);doc.setFont(undefined,'normal');
+  doc.text(`Período: ${periodLabel} | Gerado: ${new Date().toLocaleString('pt-BR')} | Usuário: ${emailToName(currentUser?.username)}`,14,18);
+  doc.setTextColor(0,39,69);doc.setFontSize(11);doc.setFont(undefined,'bold');
+  
+  if(type==='trips'){
+    const filterEmp=document.getElementById('reportEmployee').value;
+    const filterCli=document.getElementById('reportClient').value;
+    let trips=data.trips.filter(t=>t.status!=='Cancelada');
+    if(filterEmp)trips=trips.filter(t=>(t.employeeIds||[]).includes(filterEmp));
+    if(filterCli)trips=trips.filter(t=>{const p=data.projects.find(x=>x.id===t.projectId);return p&&p.client===filterCli;});
+    if(serviceType)trips=filterTripsByService(trips,serviceType);
+    doc.text(`Viagens (${trips.length} registros)`,14,30);
+    const tableData=trips.sort((a,b)=>a.start.localeCompare(b.start)).map(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)?.name.split(' ')[0]).filter(Boolean).join(', ');return[t.start,t.end,p?.op||'-',p?.client||'-',t.type,emps,calcDays(t.start,t.end).toString(),t.paymentAtrelado||'Não',t.status];});
+    doc.autoTable({startY:33,head:[['Início','Fim','OP','Cliente','Tipo','Funcionários','Dias','Pag.','Status']],body:tableData,theme:'grid',headStyles:{fillColor:[0,39,69],textColor:255,fontSize:7},bodyStyles:{fontSize:6},columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:18},3:{cellWidth:35},4:{cellWidth:28},5:{cellWidth:40},6:{cellWidth:12,halign:'center'},7:{cellWidth:18,halign:'center'},8:{cellWidth:22}},margin:{left:14,right:14}});
+  }else if(type==='calibration'){
+    const today=new Date().toISOString().split('T')[0];
+    const in90=addDays(today,90);
+    const expired=data.instruments.filter(i=>i.nextCalib&&i.nextCalib<today);
+    const expiring=data.instruments.filter(i=>i.nextCalib&&i.nextCalib>=today&&i.nextCalib<=in90);
+    doc.text(`Calibração: ${expired.length} vencida(s), ${expiring.length} vencendo em 90 dias`,14,30);
+    if(expired.length>0){doc.setFontSize(9);doc.setTextColor(220,53,69);doc.text('VENCIDAS',14,38);doc.autoTable({startY:41,head:[['ID','Descrição','Fabricante','Modelo','Local','Vencida em']],body:expired.map(i=>[i.instId,i.description,i.manufacturer||'-',i.model||'-',i.location||'-',i.nextCalib]),theme:'grid',headStyles:{fillColor:[220,53,69],textColor:255,fontSize:7},bodyStyles:{fontSize:6},margin:{left:14,right:14}});}
+    let startY=doc.lastAutoTable.finalY+8;
+    if(expiring.length>0){if(startY>380){doc.addPage();startY=20;}doc.setFontSize(9);doc.setTextColor(240,173,78);doc.text('VENCENDO EM 90 DIAS',14,startY);doc.autoTable({startY:startY+3,head:[['ID','Descrição','Fabricante','Modelo','Local','Vence em']],body:expiring.map(i=>[i.instId,i.description,i.manufacturer||'-',i.model||'-',i.location||'-',i.nextCalib]),theme:'grid',headStyles:{fillColor:[240,173,78],textColor:[0,39,69],fontSize:7},bodyStyles:{fontSize:6},margin:{left:14,right:14}});}
+  }else if(type==='employees'){
+    doc.text('Funcionários',14,30);
+    const tableData=data.employees.map(e=>{const trips=data.trips.filter(t=>(t.employeeIds||[]).includes(e.id)).length;const days=data.trips.filter(t=>(t.employeeIds||[]).includes(e.id)).reduce((s,t)=>s+calcDays(t.start,t.end),0);const docs=data.documents.filter(d=>d.employeeId===e.id).length;return[e.name,e.role||'-',e.phone||'-',trips,days,docs,(e.absences||[]).length];});
+    doc.autoTable({startY:33,head:[['Nome','Cargo','Telefone','Viagens','Dias','Documentos','Férias/Indisp.']],body:tableData,theme:'grid',headStyles:{fillColor:[0,39,69],textColor:255,fontSize:7},bodyStyles:{fontSize:6},margin:{left:14,right:14}});
+  }else if(type==='clients'){
+    doc.text('Clientes',14,30);
+    const clientStats={};data.trips.forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);if(!p)return;if(!clientStats[p.client])clientStats[p.client]={trips:0,days:0};clientStats[p.client].trips++;clientStats[p.client].days+=calcDays(t.start,t.end);});
+    const tableData=Object.entries(clientStats).sort((a,b)=>b[1].days-a[1].days).map(([c,s])=>[c,s.trips,s.days]);
+    doc.autoTable({startY:33,head:[['Cliente','Viagens','Dias Totais']],body:tableData,theme:'grid',headStyles:{fillColor:[0,39,69],textColor:255,fontSize:7},bodyStyles:{fontSize:6},margin:{left:14,right:14}});
+  }
+  
+  // Add charts as images
+  const chartIds=['chartTripStatus','chartTripMonth','chartCalibStatus','chartCalibTimeline','chartEmpDays','chartEmpTrips','chartClientTrips','chartClientDays'];
+  let imgY=doc.lastAutoTable?doc.lastAutoTable.finalY+10:50;
+  for(const cid of chartIds){
+    const canvas=document.getElementById(cid);
+    if(canvas){
+      try{
+        const imgData=canvas.toDataURL('image/png');
+        if(imgY>380){doc.addPage();imgY=20;}
+        doc.addImage(imgData,'PNG',14,imgY,180,90);
+        imgY+=100;
+      }catch(e){}
+    }
+  }
+  
+  const filename=`PISEC_Relatorio_${type}_${today}.pdf`;
+  doc.save(filename);
+  notify('PDF gerado');
+}
 
+function generateCalendarPDF(){
+  if(!requirePermission('generate_pdf','gerar PDF calendário'))return;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a3');
+  const period=document.getElementById('calPdfPeriod').value;
+  const today=new Date();
+  let startYear,startMonth,endYear,endMonth;
+  if(period==='year'){startYear=today.getFullYear();startMonth=0;endYear=today.getFullYear();endMonth=11;}
+  else{const months=parseInt(period);startYear=today.getFullYear();startMonth=today.getMonth();const endDate=new Date(today);endDate.setMonth(endDate.getMonth()+months);endYear=endDate.getFullYear();endMonth=endDate.getMonth();}
+  const todayStr=today.toISOString().split('T')[0];
+  const endStr=`${endYear}-${String(endMonth+1).padStart(2,'0')}-${String(new Date(endYear,endMonth+1,0).getDate()).padStart(2,'0')}`;
+  const trips=data.trips.filter(t=>t.start<=endStr&&t.status!=='Cancelada');
+  doc.setFillColor(0,39,69);doc.rect(0,0,420,20,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont(undefined,'bold');
+  doc.text('PISEC - Calendário de Comissionamento',14,12);
+  doc.setFontSize(9);doc.setFont(undefined,'normal');
+  const periodText=period==='year'?`Ano ${startYear}`:`Próximos ${period} meses`;
+  doc.text(`Período: ${periodText} | Gerado: ${new Date().toLocaleString('pt-BR')}`,14,18);
+  doc.setTextColor(0,39,69);doc.setFontSize(11);doc.setFont(undefined,'bold');
+  doc.text('Viagens Programadas',14,30);
+  const tableData=trips.sort((a,b)=>a.start.localeCompare(b.start)).map(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)?.name.split(' ')[0]).filter(Boolean).join(', ');return[t.start,t.end,p?.op||'-',p?.client||'-',t.type,emps,calcDays(t.start,t.end).toString(),t.paymentAtrelado||'Não',t.status];});
+  doc.autoTable({startY:33,head:[['Início','Fim','OP','Cliente','Tipo','Funcionários','Dias','Pag.','Status']],body:tableData,theme:'grid',headStyles:{fillColor:[0,39,69],textColor:255,fontSize:7},bodyStyles:{fontSize:6},columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:18},3:{cellWidth:35},4:{cellWidth:28},5:{cellWidth:40},6:{cellWidth:12,halign:'center'},7:{cellWidth:18,halign:'center'},8:{cellWidth:22}},margin:{left:14,right:14}});
+  let finalY=doc.lastAutoTable.finalY+10;
+  if(finalY>380){doc.addPage();finalY=20;}
+  doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('Alocação por Funcionário',14,finalY);
+  const empData=[];data.employees.forEach(e=>{const et=trips.filter(t=>(t.employeeIds||[]).includes(e.id));if(et.length>0){const days=et.reduce((s,t)=>s+calcDays(t.start,t.end),0);const clients=[...new Set(et.map(t=>data.projects.find(p=>p.id===t.projectId)?.client).filter(Boolean))].join(', ');empData.push([e.name,et.length.toString(),days.toString(),clients]);}});
+  if(empData.length>0){doc.autoTable({startY:finalY+3,head:[['Funcionário','Viagens','Dias','Clientes']],body:empData,theme:'grid',headStyles:{fillColor:[0,39,69],textColor:255,fontSize:7},bodyStyles:{fontSize:6},columnStyles:{0:{cellWidth:80},1:{cellWidth:40,halign:'center'},2:{cellWidth:40,halign:'center'},3:{cellWidth:200}},margin:{left:14,right:14}});}
+  const conflicts=detectConflicts();
+  if(conflicts.length>0){finalY=doc.lastAutoTable.finalY+10;if(finalY>380){doc.addPage();finalY=20;}doc.setFillColor(255,243,205);doc.rect(14,finalY-5,392,8,'F');doc.setTextColor(133,100,4);doc.setFontSize(9);doc.setFont(undefined,'bold');doc.text('ATENÇÃO: Conflitos de agenda detectados - revisar alocação de funcionários',14,finalY);}
+  const filename=`PISEC_Calendario_${periodText.replace(/\s/g,'_')}_${todayStr}.pdf`;
+  doc.save(filename);
+  notify('PDF do calendário gerado');
+}
 
+function generateInstrumentsPDF(){
+  if(!requirePermission('generate_pdf','gerar PDF instrumentos'))return;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a3');
+  const today=new Date().toISOString().split('T')[0];
+  doc.setFillColor(0,39,69);doc.rect(0,0,420,20,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont(undefined,'bold');
+  doc.text('PISEC - Banco de Dados de Instrumentos',14,12);
+  doc.setFontSize(9);doc.setFont(undefined,'normal');
+  doc.text(`Gerado: ${new Date().toLocaleString('pt-BR')} | Total: ${data.instruments.length} instrumentos`,14,18);
+  doc.setTextColor(0,39,69);doc.setFontSize(10);doc.setFont(undefined,'bold');
+  doc.text('Instrumentos',14,30);
+  const statusLabels={ok:'OK',intervention:'Intervenção',discarded:'Descartado'};
+  const tableData=data.instruments.map(i=>[i.instId||'-',i.description||'-',i.manufacturer||'-',i.model||'-',i.capacity||'-',i.qty||0,i.minQty||0,statusLabels[i.status]||'-',i.location||'-',i.lastResp||'-',i.acqDate||'-',i.calibDate||'-',i.calibFreq===0?'N/A':i.calibFreq+' meses',i.nextCalib||'-',i.value||'-']);
+  doc.autoTable({startY:33,head:[['ID','Descrição','Fabricante','Modelo','Capacidade','Qtd','Qtd Mín','Situação','Localização','Últ. Resp.','Aquisição','Calibração','Frequência','Próx. Calib.','Valor']],body:tableData,theme:'grid',headStyles:{fillColor:[0,39,69],textColor:255,fontSize:6,fontStyle:'bold'},bodyStyles:{fontSize:5.5},columnStyles:{0:{cellWidth:18},1:{cellWidth:45},2:{cellWidth:25},3:{cellWidth:20},4:{cellWidth:22},5:{cellWidth:10,halign:'center'},6:{cellWidth:12,halign:'center'},7:{cellWidth:18},8:{cellWidth:25},9:{cellWidth:22},10:{cellWidth:18},11:{cellWidth:18},12:{cellWidth:18},13:{cellWidth:18},14:{cellWidth:18}},margin:{left:14,right:14}});
+  const filename=`PISEC_Instrumentos_${today}.pdf`;
+  doc.save(filename);
+  notify('PDF de instrumentos gerado');
+}
 
+function generate90DaysPDF(){
+  if(!requirePermission('generate_pdf','gerar PDF'))return;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a3');
+  const today=new Date();const endDate=new Date();endDate.setDate(today.getDate()+90);
+  const todayStr=today.toISOString().split('T')[0];const endStr=endDate.toISOString().split('T')[0];
+  const trips=data.trips.filter(t=>t.start<=endStr&&t.end>=todayStr&&t.status!=='Cancelada');
+  doc.setFillColor(0,39,69);doc.rect(0,0,420,20,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont(undefined,'bold');
+  doc.text('PISEC - Calendário de Comissionamento',14,12);
+  doc.setFontSize(9);doc.setFont(undefined,'normal');
+  doc.text(`Planejamento - Próximos 90 dias | Período: ${today.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')} | Gerado: ${new Date().toLocaleString('pt-BR')}`,14,18);
+  doc.setTextColor(0,39,69);doc.setFontSize(11);doc.setFont(undefined,'bold');
+  doc.text('Resumo',14,30);
+  const totalTrips=trips.length;const totalDays=trips.reduce((s,t)=>s+calcDays(t.start,t.end),0);const totalEmpDays=trips.reduce((s,t)=>s+calcDays(t.start,t.end)*(t.employeeIds?.length||1),0);
+  const uniqueClients=[...new Set(trips.map(t=>data.projects.find(p=>p.id===t.projectId)?.client).filter(Boolean))];
+  doc.setFontSize(8);doc.setFont(undefined,'normal');
+  doc.text(`Viagens: ${totalTrips} | Dias: ${totalDays} | Dias-homem: ${totalEmpDays} | Clientes: ${uniqueClients.length}`,14,36);
+  doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('Viagens Programadas',14,44);
+  const tableData=trips.sort((a,b)=>a.start.localeCompare(b.start)).map(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)?.name.split(' ')[0]).filter(Boolean).join(', ');return[t.start,t.end,p?.op||'-',p?.client||'-',t.type,emps,calcDays(t.start,t.end).toString(),t.paymentAtrelado||'Não',t.status];});
+  doc.autoTable({startY:47,head:[['Início','Fim','OP','Cliente','Tipo','Funcionários','Dias','Pag.','Status']],body:tableData,theme:'grid',headStyles:{fillColor:[0,39,69],textColor:255,fontSize:7,fontStyle:'bold'},bodyStyles:{fontSize:6,textColor:[26,26,26]},alternateRowStyles:{fillColor:[240,244,255]},columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:18},3:{cellWidth:30},4:{cellWidth:28},5:{cellWidth:40},6:{cellWidth:12,halign:'center'},7:{cellWidth:18,halign:'center'},8:{cellWidth:22}},margin:{left:14,right:14}});
+  let finalY=doc.lastAutoTable.finalY+10;if(finalY>380){doc.addPage();finalY=20;}
+  doc.setFontSize(11);doc.setFont(undefined,'bold');doc.setTextColor(0,39,69);doc.text('Alocação por Funcionário',14,finalY);
+  const empData=[];data.employees.forEach(e=>{const et=trips.filter(t=>(t.employeeIds||[]).includes(e.id));if(et.length>0){const days=et.reduce((s,t)=>s+calcDays(t.start,t.end),0);const clients=[...new Set(et.map(t=>data.projects.find(p=>p.id===t.projectId)?.client).filter(Boolean))].join(', ');empData.push([e.name,et.length.toString(),days.toString(),clients]);}});
+  if(empData.length>0){doc.autoTable({startY:finalY+3,head:[['Funcionário','Viagens','Dias','Clientes']],body:empData,theme:'grid',headStyles:{fillColor:[0,39,69],textColor:255,fontSize:7,fontStyle:'bold'},bodyStyles:{fontSize:6},columnStyles:{0:{cellWidth:80},1:{cellWidth:40,halign:'center'},2:{cellWidth:40,halign:'center'},3:{cellWidth:200}},margin:{left:14,right:14}});}
+  const conflicts=detectConflicts();
+  if(conflicts.length>0){finalY=doc.lastAutoTable.finalY+10;if(finalY>380){doc.addPage();finalY=20;}doc.setFillColor(255,243,205);doc.rect(14,finalY-5,392,8,'F');doc.setTextColor(133,100,4);doc.setFontSize(9);doc.setFont(undefined,'bold');doc.text('ATENÇÃO: Conflitos de agenda detectados',14,finalY);}
+  const filename=`PISEC_Viagens_90dias_${todayStr}.pdf`;
+  doc.save(filename);
+  notify('PDF gerado');
+}
 
 function closeModal(id){document.getElementById(id).classList.remove('active');}
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('active');});});
