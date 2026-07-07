@@ -98,14 +98,6 @@
   .cal-day.other-month { opacity: 0.3; }
   .cal-day.past { background: #c8ccd0; color: #495057; }
   .cal-day.past .day-number { color: #343a40; }
-  .cal-day.past::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(135deg, transparent 45%, rgba(0,0,0,0.25) 49%, rgba(0,0,0,0.25) 51%, transparent 55%);
-    pointer-events: none;
-    z-index: 1;
-  }
   .cal-day.holiday { background: #fff5f5; border-color: #dc3545; }
   .cal-day.holiday .day-number { color: #dc3545; font-weight: 700; }
   .cal-day.conflict { background: #fff3cd; border-color: #f0ad4e; }
@@ -655,7 +647,6 @@
           <select id="filterInstLocation" onchange="renderInstruments()"><option value="">Todas localizações</option></select>
         </div>
         <div class="table-container"><table><thead><tr>
-          <th><input type="checkbox" id="selectAllCalib" onchange="toggleSelectAllCalib()"></th>
           <th data-sort="instId">ID <span class="sort-icon"></span></th>
           <th data-sort="description">Descrição <span class="sort-icon"></span></th>
           <th data-sort="manufacturer">Fabricante <span class="sort-icon"></span></th>
@@ -1194,15 +1185,16 @@ function renderCalendar(){
     const cell=createDayCell(d,false,isPast,isToday,dateStr);
     if(dayConflicts.length>0)cell.classList.add('conflict');
     
-    // Assembly day background (no text)
-    let hasAssembly=false;
+    // Assembly day text (no background highlight)
     data.projects.forEach(p=>{
       if(filterCli&&p.client!==filterCli)return;
       if(p.hasAsm&&p.asmStart&&p.asmEnd&&dateStr>=p.asmStart&&dateStr<=p.asmEnd){
-        hasAssembly=true;
+        const asmText=document.createElement('div');
+        asmText.style.cssText='padding:2px 4px;background:#e8f5e9;border-radius:3px;margin-bottom:2px;font-size:9px;color:#28a745;font-weight:600';
+        asmText.textContent=`Mont. ${p.op} - ${p.client}`;
+        cell.appendChild(asmText);
       }
     });
-    if(hasAssembly)cell.classList.add('assembly-day');
     
     dayHolidays.forEach(h=>{const ev=document.createElement('div');ev.className='cal-event holiday-event';ev.textContent=' '+h.name;cell.appendChild(ev);});
     
@@ -1231,7 +1223,7 @@ function renderCalendar(){
       const label=document.createElement('div');
       label.className='trip-bar-label';
       const proj=data.projects.find(p=>p.id===trip.projectId);
-      label.textContent=`${emp.name.split(' ')[0]} - ${proj?.op||''}`;
+      label.textContent=`${emp.name.split(' ')[0]} - ${proj?.op||''} - ${proj?.client||''}`;
       label.title=`${trip.type}: ${proj?.client||''} (${emp.name}) ${trip.start} a ${trip.end}`;
       bar.appendChild(label);
       container.appendChild(bar);
