@@ -10,7 +10,7 @@
   "theme_color": "#002745",
   "icons": [
     {
-      "src": "file:///G:/PADRÕES/LOGO BRUNNSCHWEILER/favicon.png",
+      "src": "https://micheldp2.github.io/pisec/favicon.png",
       "type": "image/png",
       "isSquare": false,
       "isPng": true,
