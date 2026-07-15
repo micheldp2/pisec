@@ -10,16 +10,14 @@
   "theme_color": "#002745",
   "icons": [
     {
-      "src": "https://micheldp2.github.io/pisec/favicon.png",
-      "type": "image/png",
-      "isSquare": false,
-      "isPng": true,
-      "isWebp": false,
-      "isJpg": false,
-      "width": 0,
-      "is512x512": false,
-      "is256x256": false,
-      "is192x192": false
+      "src": "https://micheldp2.github.io/pisec/launchericon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://micheldp2.github.io/pisec/launchericon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }
