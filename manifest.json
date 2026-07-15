@@ -4,7 +4,7 @@
   "display": "standalone",
   "name": "PISEC",
   "orientation": "any",
-  "scope": "/",
+  "scope": "/index.html",
   "short_name": "PISEC",
   "start_url": "/index.html",
   "theme_color": "#002745",
