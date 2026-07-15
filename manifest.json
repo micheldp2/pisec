@@ -1,0 +1,25 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "PISEC",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "PISEC",
+  "start_url": "/",
+  "theme_color": "#002745",
+  "icons": [
+    {
+      "src": "file:///G:/PADRÕES/LOGO BRUNNSCHWEILER/favicon.png",
+      "type": "image/png",
+      "isSquare": false,
+      "isPng": true,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    }
+  ]
+}
