@@ -229,63 +229,7 @@ tr:hover { background: #f8f9fa; }
 .calib-check-row input { width: 16px; height: 16px; }
 .calib-check-row label { flex: 1; font-size: 12px; cursor: pointer; }
 .calib-check-row .calib-status { font-size: 11px; }
-@media print {
-    /* Esconde tudo que não é o calendário */
-    .header, .tabs, .filters, .btn, .modal-overlay, .login-screen, 
-    .legend, #employeeLegend, #undefinedDateTripsContainer,
-    .calendar-header select, .calendar-header button,
-    .stats-grid, .pagination-controls, .calendar-nav,
-    .tab-content:not(.active), .sub-tabs, .sub-content:not(.active),
-    #calendarConflictsBanner {
-        display: none !important;
-    }
-    
-    /* Força cores de fundo e barras na impressão */
-    body {
-        background: white !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-    
-    .content {
-        padding: 0 !important;
-        max-width: 100% !important;
-    }
-    
-    #tab-calendar {
-        display: block !important;
-    }
-    
-    .calendar-title {
-        font-size: 18pt !important;
-        text-align: center;
-        margin-bottom: 10px;
-        color: #002745 !important;
-    }
-    
-    .calendar-grid {
-        box-shadow: none !important;
-        page-break-inside: avoid;
-    }
-    
-    .cal-day {
-        border: 1px solid #ccc !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-    
-    .cal-day-header {
-        background: #002745 !important;
-        color: white !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-    
-    .trip-bar-merged {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-}
+@media print { .header, .tabs, .filters, .btn, .modal-overlay, .login-screen { display: none !important; } .content { padding: 0; } body { background: white; } }
 @media (max-width: 768px) { .header { padding: 10px; gap: 10px; } .logo-text { font-size: 16px; } .logo-sub { display: none; } .header-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; gap: 6px; } .header-btn { padding: 6px 10px; font-size: 11px; } .header-btn .tooltip-text { display: none; } .user-badge { font-size: 11px; padding: 4px 8px; } .tabs { padding: 0 10px; } .tab { padding: 12px 14px; font-size: 13px; } .content { padding: 12px; } .modal-overlay { padding: 0; } .modal { max-width: 100%; max-height: 100vh; height: 100vh; margin: 0; border-radius: 0; } .modal-body { padding: 16px; } .modal-footer { padding: 12px 16px; flex-wrap: wrap; } .form-grid, .form-grid-3 { grid-template-columns: 1fr; } .perm-grid { grid-template-columns: 1fr; } .table-container { font-size: 12px; } th, td { padding: 8px; } .cal-day { min-height: 70px; font-size: 10px; } #calendarGrid { grid-template-columns: 1fr !important; } .calendar-header { flex-direction: column; align-items: stretch; } .calendar-nav { justify-content: center; } .stat-card { padding: 12px; } .stat-value { font-size: 20px; } .btn { padding: 10px 14px; font-size: 14px; } .btn-sm { padding: 8px 12px; font-size: 13px; } .filters { flex-direction: column; } .filters select, .filters input { width: 100%; } }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -3567,17 +3511,17 @@ async function init(){
     wrapFiltersWithLabels();
 }
 function printCalendarToPDF() {
-    // Garante que a aba calendário está ativa
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    const calTab = document.querySelector('.tab[data-tab="calendar"]');
-    if (calTab) calTab.classList.add('active');
-    document.getElementById('tab-calendar').classList.add('active');
-    
-    // Chama a impressão do navegador (usará o CSS @media print)
-    setTimeout(() => {
+    const tempStyle = document.createElement('style');
+    tempStyle.id = 'printCalendarStyle';
+    tempStyle.textContent = `
+        @media print {
+            @page {
+                size: A3 portrait;
+                margin: 10mm;
+            }
+    `;
+    document.head.appendChild(tempStyle);
         window.print();
-    }, 300);
 }
 init();
 </script>
