@@ -2794,44 +2794,64 @@ if(id){const d=data.documents.find(x=>x.id===id);empSel.value=d.employeeId;docum
 async function saveDocument(){if(!requirePermission('edit_documents','salvar documentos'))return;const expiryIndef=document.getElementById('docExpiryIndef').checked;const doc={id:editingId||Date.now().toString(),employeeId:document.getElementById('docEmployee').value,type:document.getElementById('docType').value,issue:document.getElementById('docIssue').value,expiry:expiryIndef?'':document.getElementById('docExpiry').value,expiryIndef,critical:document.getElementById('docCritical').checked,filePath:document.getElementById('docFilePath').value,notes:document.getElementById('docNotes').value};if(!doc.employeeId||!doc.type){notify('Colaborador e tipo obrigatórios','error');return;}if(editingId){const idx=data.documents.findIndex(d=>d.id===editingId);data.documents[idx]=doc;}else{data.documents.push(doc);}await saveToServer();closeModal('docModal');renderAll();if(employeeDetailCurrentId)renderEmployeeDetailDocs(employeeDetailCurrentId);notify('Documento salvo');}
 function editDocument(id){openDocModal(id);}
 async function deleteDocument(id){if(!requirePermission('edit_documents','excluir documentos'))return;if(!confirm('Excluir?'))return;data.documents=data.documents.filter(d=>d.id!==id);await saveToServer();renderAll();notify('Excluído');}
+
 function renderInstruments(){
-if(!hasPerm('view_instruments')){document.getElementById('instrumentsTable').innerHTML='<tr><td colspan="10" class="empty-state">Sem permissão</td></tr>';return;}
-const tbody=document.getElementById('instrumentsTable');
-const filterStatus=document.getElementById('filterInstStatus').value;
-const filterLoc=document.getElementById('filterInstLocation').value;
-const today=new Date().toISOString().split('T')[0];
-let insts=data.instruments.slice();
-if(filterStatus==='available')insts=insts.filter(i=>!isInstrumentInUse(i.id));
-else if(filterStatus==='in-use')insts=insts.filter(i=>isInstrumentInUse(i.id));
-else if(filterStatus==='ok')insts=insts.filter(i=>i.status==='ok');
-else if(filterStatus==='intervention')insts=insts.filter(i=>i.status==='intervention');
-else if(filterStatus==='discarded')insts=insts.filter(i=>i.status==='discarded');
-if(filterLoc)insts=insts.filter(i=>i.location===filterLoc);
-
+    if(!hasPerm('view_instruments')){
+        document.getElementById('instrumentsTable').innerHTML='<tr><td colspan="10" class="empty-state">Sem permissão</td></tr>';
+        return;
+    }
+    const tbody=document.getElementById('instrumentsTable');
+    const filterStatus=document.getElementById('filterInstStatus').value;
+    const filterLoc=document.getElementById('filterInstLocation').value;
+    const today=new Date().toISOString().split('T')[0];
+    
+    let insts=data.instruments.slice();
+    
+    // Aplica filtros
+    if(filterStatus==='available')insts=insts.filter(i=>!isInstrumentInUse(i.id));
+    else if(filterStatus==='in-use')insts=insts.filter(i=>isInstrumentInUse(i.id));
+    else if(filterStatus==='ok')insts=insts.filter(i=>i.status==='ok');
+    else if(filterStatus==='intervention')insts=insts.filter(i=>i.status==='intervention');
+    else if(filterStatus==='discarded')insts=insts.filter(i=>i.status==='discarded');
+    if(filterLoc)insts=insts.filter(i=>i.location===filterLoc);
+    
+    // Verifica se há ordenação ativa pelo clique no cabeçalho
+    const hasActiveSort = Object.entries(sortState).some(([k,v]) => v !== 'none');
+    
+    if(hasActiveSort) {
+        // Usa a ordenação persistente (clique no cabeçalho)
+        insts = applyPersistentSort(insts, 'instruments');
+    } else {
+        // Ordenação padrão por ID (numérica/alfabética)
 insts = insts.slice().sort((a, b) => {
-    const numA = parseInt((a.instId || '').replace(/\D/g, '')) || 0;
-    const numB = parseInt((b.instId || '').replace(/\D/g, '')) || 0;
-    if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
-    return (a.instId || '').localeCompare(b.instId || '', 'pt-BR', {numeric: true});
+    return (a.instId || '').localeCompare(b.instId || '', 'pt-BR', {numeric: true, sensitivity: 'base'});
 });
-
-
-
-
-if(!insts.length){tbody.innerHTML='<tr><td colspan="10" class="empty-state"><div class="empty-state-icon">🔧</div>Nenhum instrumento</td></tr>';return;}
-const statusLabels={ok:'<span class="badge badge-done">OK</span>',intervention:'<span class="badge badge-warning">Intervenção</span>',discarded:'<span class="badge badge-expired">Descartado</span>'};
-tbody.innerHTML=insts.map(i=>{
-const inUse=isInstrumentInUse(i.id);
-const calibStatus=!i.nextCalib?'':i.nextCalib<today?'<span class="badge badge-expired">Vencida</span>':i.nextCalib<=addDays(today,90)?'<span class="badge badge-warning">Vence em breve</span>':'<span class="badge badge-active">OK</span>';
-const actionsHtml=`<td>
-<button class="btn btn-info btn-sm" onclick="printInstrumentNote('${i.instId}')" style="margin-right:4px;">Nota</button>
-<button class="btn btn-info btn-sm" onclick="openInstrumentDetailModal('${i.id}')" style="margin-right:4px;">Detalhes</button>
-${hasPerm('edit_instruments')?`<button class="btn btn-danger btn-sm" onclick="deleteInstrument('${i.id}')">Excluir</button>`:''}
-</td>`;
-return `<tr><td><strong>${i.instId||'-'}</strong></td><td title="${i.description||''}">${(i.description||'').substring(0,30)}${(i.description||'').length>30?'...':''}</td><td>${i.manufacturer||'-'}</td><td>${i.model||'-'}</td><td>${i.qty||0}${inUse?'<small style="color:#f0ad4e">(uso)</small>':''}</td><td>${statusLabels[i.status]||'-'}</td><td>${i.location||'-'}</td><td>${i.nextCalib||'-'} ${calibStatus}</td>${actionsHtml}</tr>`;
-}).join('');
-
+    }
+    
+    if(!insts.length){
+        tbody.innerHTML='<tr><td colspan="10" class="empty-state"><div class="empty-state-icon">🔧</div>Nenhum instrumento</td></tr>';
+        return;
+    }
+    
+    const statusLabels={
+        ok:'<span class="badge badge-done">OK</span>',
+        intervention:'<span class="badge badge-warning">Intervenção</span>',
+        discarded:'<span class="badge badge-expired">Descartado</span>'
+    };
+    
+    tbody.innerHTML=insts.map(i=>{
+        const inUse=isInstrumentInUse(i.id);
+        const calibStatus=!i.nextCalib?'':i.nextCalib<today?'<span class="badge badge-expired">Vencida</span>':i.nextCalib<=addDays(today,90)?'<span class="badge badge-warning">Vence em breve</span>':'<span class="badge badge-active">OK</span>';
+        const actionsHtml=`<td>
+            <button class="btn btn-info btn-sm" onclick="printInstrumentNote('${i.instId}')" style="margin-right:4px;">Nota</button>
+            <button class="btn btn-info btn-sm" onclick="openInstrumentDetailModal('${i.id}')" style="margin-right:4px;">Detalhes</button>
+            ${hasPerm('edit_instruments')?`<button class="btn btn-danger btn-sm" onclick="deleteInstrument('${i.id}')">Excluir</button>`:''}
+        </td>`;
+        return `<tr><td><strong>${i.instId||'-'}</strong></td><td title="${i.description||''}">${(i.description||'').substring(0,30)}${(i.description||'').length>30?'...':''}</td><td>${i.manufacturer||'-'}</td><td>${i.model||'-'}</td><td>${i.qty||0}${inUse?'<small style="color:#f0ad4e">(uso)</small>':''}</td><td>${statusLabels[i.status]||'-'}</td><td>${i.location||'-'}</td><td>${i.nextCalib||'-'} ${calibStatus}</td>${actionsHtml}</tr>`;
+    }).join('');
 }
+
+
 function isInstrumentInUse(instId){return data.checkouts.some(c=>c.instrumentIds.includes(instId)&&!c.returnDate);}
 function openInstrumentModal(id){if(!requirePermission('edit_instruments','cadastrar instrumentos'))return;editingId=id||null;document.getElementById('instrumentModalTitle').textContent=id?'Editar Instrumento':'Novo Instrumento';if(id){const i=data.instruments.find(x=>x.id===id);document.getElementById('instId').value=i.instId||'';document.getElementById('instDesc').value=i.description||'';document.getElementById('instManufacturer').value=i.manufacturer||'';document.getElementById('instModel').value=i.model||'';document.getElementById('instCapacity').value=i.capacity||'';document.getElementById('instQty').value=i.qty||1;document.getElementById('instMinQty').value=i.minQty||1;document.getElementById('instStatus').value=i.status||'ok';document.getElementById('instLocation').value=i.location||'';document.getElementById('instLastResp').value=i.lastResp||'';document.getElementById('instAcqDate').value=i.acqDate||'';document.getElementById('instCalib').value=i.calibDate||'';document.getElementById('instCalibFreq').value=i.calibFreq||12;document.getElementById('instNextCalib').value=i.nextCalib||'';document.getElementById('instNotes').value=i.notes||'';}else{['instId','instDesc','instManufacturer','instModel','instCapacity','instLocation','instLastResp','instAcqDate','instCalib','instNextCalib','instNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('instQty').value=1;document.getElementById('instMinQty').value=1;document.getElementById('instStatus').value='ok';document.getElementById('instCalibFreq').value=12;}document.getElementById('instrumentModal').classList.add('active');}
 async function saveInstrument(){if(!requirePermission('edit_instruments','salvar instrumentos'))return;const inst={id:editingId||Date.now().toString(),instId:document.getElementById('instId').value,description:document.getElementById('instDesc').value,manufacturer:document.getElementById('instManufacturer').value,model:document.getElementById('instModel').value,capacity:document.getElementById('instCapacity').value,qty:parseInt(document.getElementById('instQty').value)||0,minQty:parseInt(document.getElementById('instMinQty').value)||0,status:document.getElementById('instStatus').value,location:document.getElementById('instLocation').value,lastResp:document.getElementById('instLastResp').value,acqDate:document.getElementById('instAcqDate').value,calibDate:document.getElementById('instCalib').value,calibFreq:parseInt(document.getElementById('instCalibFreq').value)||12,nextCalib:document.getElementById('instNextCalib').value,notes:document.getElementById('instNotes').value};if(!inst.instId||!inst.description){notify('ID e descrição obrigatórios','error');return;}if(data.instruments.some(i=>i.instId.trim().toLowerCase()===inst.instId.trim().toLowerCase()&&i.id!==editingId)){notify('Já existe um instrumento com esse ID','error');return;}if(editingId){const idx=data.instruments.findIndex(i=>i.id===editingId);data.instruments[idx]=inst;}else{data.instruments.push(inst);}await saveToServer();closeModal('instrumentModal');renderAll();notify('Instrumento salvo');}
