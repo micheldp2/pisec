@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#3F3D48">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PISEC - Portal Integrado de Serviços Especializados em Campo</title>
@@ -231,7 +229,63 @@ tr:hover { background: #f8f9fa; }
 .calib-check-row input { width: 16px; height: 16px; }
 .calib-check-row label { flex: 1; font-size: 12px; cursor: pointer; }
 .calib-check-row .calib-status { font-size: 11px; }
-@media print { .header, .tabs, .filters, .btn, .modal-overlay, .login-screen { display: none !important; } .content { padding: 0; } body { background: white; } }
+@media print {
+    /* Esconde tudo que não é o calendário */
+    .header, .tabs, .filters, .btn, .modal-overlay, .login-screen, 
+    .legend, #employeeLegend, #undefinedDateTripsContainer,
+    .calendar-header select, .calendar-header button,
+    .stats-grid, .pagination-controls, .calendar-nav,
+    .tab-content:not(.active), .sub-tabs, .sub-content:not(.active),
+    #calendarConflictsBanner {
+        display: none !important;
+    }
+    
+    /* Força cores de fundo e barras na impressão */
+    body {
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .content {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    
+    #tab-calendar {
+        display: block !important;
+    }
+    
+    .calendar-title {
+        font-size: 18pt !important;
+        text-align: center;
+        margin-bottom: 10px;
+        color: #002745 !important;
+    }
+    
+    .calendar-grid {
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    
+    .cal-day {
+        border: 1px solid #ccc !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .cal-day-header {
+        background: #002745 !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .trip-bar-merged {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
 @media (max-width: 768px) { .header { padding: 10px; gap: 10px; } .logo-text { font-size: 16px; } .logo-sub { display: none; } .header-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; gap: 6px; } .header-btn { padding: 6px 10px; font-size: 11px; } .header-btn .tooltip-text { display: none; } .user-badge { font-size: 11px; padding: 4px 8px; } .tabs { padding: 0 10px; } .tab { padding: 12px 14px; font-size: 13px; } .content { padding: 12px; } .modal-overlay { padding: 0; } .modal { max-width: 100%; max-height: 100vh; height: 100vh; margin: 0; border-radius: 0; } .modal-body { padding: 16px; } .modal-footer { padding: 12px 16px; flex-wrap: wrap; } .form-grid, .form-grid-3 { grid-template-columns: 1fr; } .perm-grid { grid-template-columns: 1fr; } .table-container { font-size: 12px; } th, td { padding: 8px; } .cal-day { min-height: 70px; font-size: 10px; } #calendarGrid { grid-template-columns: 1fr !important; } .calendar-header { flex-direction: column; align-items: stretch; } .calendar-nav { justify-content: center; } .stat-card { padding: 12px; } .stat-value { font-size: 20px; } .btn { padding: 10px 14px; font-size: 14px; } .btn-sm { padding: 8px 12px; font-size: 13px; } .filters { flex-direction: column; } .filters select, .filters input { width: 100%; } }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -357,7 +411,7 @@ tr:hover { background: #f8f9fa; }
 </div>
 <div class="form-group full"><label>Colaboradores</label><div id="tripEmployees" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#f8f9fa;border:1px solid #e9ecef;border-radius:6px;min-height:40px"></div></div>
 <div class="form-group full"><label>Observações</label><textarea id="tripNotes"></textarea></div>
-<div class="form-group"><label>Status</label><select id="tripStatus"><option value="Agendada">Agendada</option><option value="Em andamento">Em andamento</option><option value="Concluída">Concluída</option><option value="Cancelada">Cancelada</option></select></div>
+<div class="form-group" style="display: none"><label>Status</label><select id="tripStatus"><option value="Em aberto">Em aberto</option><option value="Agendada">Agendada</option><option value="Em andamento">Em andamento</option><option value="Concluída">Concluída</option><option value="Cancelada">Cancelada</option></select></div>
 <div class="form-group"><label>Pagamento Atrelado</label><select id="tripPayment"><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
 </div>
 <div style="margin-top:16px"><label style="font-size:13px;color:#002745;font-weight:700">Etapas desta viagem</label><div id="tripStagesContainer" class="stage-grid"></div></div>
@@ -444,14 +498,15 @@ Total Geral: R$ <span id="expensesTotalDisplay">0,00</span>
 <div class="form-group"><label>Pedido de Compra</label><input type="text" id="contractPoNumber"></div>
 <div class="form-group" style="display:none;"><label>Cliente Final</label><input type="text" id="contractFinalClient"></div>
 <div class="form-group full"><label>Local do Serviço</label><input type="text" id="contractServiceLocation"></div>
+<div class="form-group full"><label>Descrição do Serviço</label><textarea id="contractServiceDesc" placeholder="Descreva os serviços a serem realizados" style="min-height:80px"></textarea></div>
 <div class="form-group"><label>Prazo (dias)</label><input type="number" id="contractDuration" value="180"></div>
 </div>
 <h4 style="margin-top:16px; color:#002745;">Testemunhas</h4>
 <div class="form-grid">
-<div class="form-group"><label>Testemunha 1 Nome</label><input type="text" id="contractW1Name" onchange="autoFillWitnessCpf(1)"></div>
-<div class="form-group"><label>Testemunha 1 CPF</label><input type="text" id="contractW1Cpf" oninput="maskCpf(this)"></div>
-<div class="form-group"><label>Testemunha 2 Nome</label><input type="text" id="contractW2Name" onchange="autoFillWitnessCpf(2)"></div>
-<div class="form-group"><label>Testemunha 2 CPF</label><input type="text" id="contractW2Cpf" oninput="maskCpf(this)"></div>
+<div class="form-group"><label>Testemunha 1 Nome</label><select id="contractW1Name" onchange="autoFillWitnessCpfFromSelect(1)"><option value="">Selecione...</option></select></div>
+<div class="form-group"><label>Testemunha 1 CPF</label><input type="text" id="contractW1Cpf" placeholder="CPF" oninput="maskCpf(this)"></div>
+<div class="form-group"><label>Testemunha 2 Nome</label><select id="contractW2Name" onchange="autoFillWitnessCpfFromSelect(2)"><option value="">Selecione...</option></select></div>
+<div class="form-group"><label>Testemunha 2 CPF</label><input type="text" id="contractW2Cpf" placeholder="CPF" oninput="maskCpf(this)"></div>
 </div>
 </div>
 <div class="modal-footer">
@@ -635,6 +690,7 @@ Total Geral: R$ <span id="expensesTotalDisplay">0,00</span>
 </select>
 <select id="filterEmployee" onchange="renderCalendar()" style="padding:8px;background:white;border:1px solid #ced4da;border-radius:6px"><option value="">Todos os colaboradores</option></select>
 <select id="filterClient" onchange="renderCalendar()" style="padding:8px;background:white;border:1px solid #ced4da;border-radius:6px"><option value="">Todos os clientes</option></select>
+<button class="btn btn-primary" onclick="printCalendarToPDF()" style="padding:8px 16px">📄 Gerar PDF</button>
 </div>
 </div>
 <div id="calendarGrid"></div>
@@ -644,6 +700,10 @@ Total Geral: R$ <span id="expensesTotalDisplay">0,00</span>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
 <h2 class="section-title" style="margin:0">Projetos</h2>
 <button class="btn btn-primary action-edit-projects" onclick="openProjectModal()">+ Novo</button>
+</div>
+<div class="filters">
+<select id="filterProjectClient" onchange="renderProjects()"><option value="">Todos</option></select>
+<select id="filterProjectStatus" onchange="renderProjects()"><option value="">Todos</option><option value="Em andamento">Em andamento</option><option value="Concluído">Concluído</option><option value="Em garantia">Em garantia</option></select>
 </div>
 <div class="table-container"><table><thead><tr>
 <th data-sort="op">OP <span class="sort-icon"></span></th>
@@ -665,7 +725,7 @@ Total Geral: R$ <span id="expensesTotalDisplay">0,00</span>
 <div class="filters">
 <select id="filterTripProject" onchange="renderTrips()"><option value="">Todos os projetos</option></select>
 <select id="filterTripEmployee" onchange="renderTrips()"><option value="">Todos os colaboradores</option></select>
-<select id="filterTripStatus" onchange="renderTrips()"><option value="">Todos</option><option value="future">Futuras</option><option value="past">Realizadas</option></select>
+<select id="filterTripStatus" onchange="renderTrips()"><option value="">Todos</option><option value="Em aberto">Em aberto</option><option value="Agendada">Agendada</option><option value="Em andamento">Em andamento</option><option value="Concluída">Concluída</option><option value="Cancelada">Cancelada</option></select>
 </div>
 <div class="stats-grid" id="tripStats"></div>
 <div class="table-container"><table><thead><tr>
@@ -819,12 +879,6 @@ function firebaseUrl(url,key){return key?`${url}${url.includes('?')?'&':'?'}auth
 let calibSelection = {};
 let sortState = {};
 let data = {projects:[],trips:[],employees:[],documents:[],instruments:[],checkouts:[],users:[]};
-const paginationState = {
-projects: { page: 1, limit: 10 },
-trips: { page: 1, limit: 10 },
-employees: { page: 1, limit: 10 },
-instruments: { page: 1, limit: 10 }
-};
 
 // Funções de Máscara e Validação
 function maskPhone(el){let v=el.value.replace(/\D/g,'');let countryCode='';let localNumber=v;if(v.length>11){countryCode=v.substring(0,v.length-11);localNumber=v.substring(v.length-11);}if(localNumber.length>10){localNumber=`(${localNumber.substring(0,2)}) ${localNumber.substring(2,7)}-${localNumber.substring(7)}`;}else if(localNumber.length>6){localNumber=`(${localNumber.substring(0,2)}) ${localNumber.substring(2,6)}-${localNumber.substring(6)}`;}else if(localNumber.length>2){localNumber=`(${localNumber.substring(0,2)}) ${localNumber.substring(2)}`;}else if(localNumber.length>0){localNumber=`(${localNumber}`;}el.value=countryCode?`+${countryCode} ${localNumber}`:localNumber;}
@@ -940,9 +994,9 @@ renderAll();
 });
 
 function getTripEffectiveStatus(t){
-if(t.status==='Concluída'||t.status==='Cancelada')return t.status;
+if(t.status==='Concluída'||t.status==='Cancelada'||t.status==='Necessária')return t.status;
 const todayStr=new Date().toISOString().split('T')[0];
-if(t.end<todayStr)return 'Em aberto';
+if(t.status==='Em aberto'||(t.end&&t.end<todayStr&&t.status!=='Em andamento'))return 'Em aberto';
 return t.status||'Agendada';
 }
 function tripSortKey(t){
@@ -1292,6 +1346,14 @@ document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{do
 if(currentUser) loadFromServer();
 });});
 document.querySelectorAll('.sub-tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.sub-tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.sub-content').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('sub-'+t.dataset.sub).classList.add('active');});});
+function sortProjectsByOp(projects) {
+    return projects.slice().sort((a, b) => {
+        const numA = parseInt((a.op || '').replace(/\D/g, '')) || 0;
+        const numB = parseInt((b.op || '').replace(/\D/g, '')) || 0;
+        if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
+        return (a.op || '').localeCompare(b.op || '', 'pt-BR', {numeric: true});
+    });
+}
 function parseDateValue(str){
 if(!str)return null;
 str=String(str).trim();
@@ -1839,7 +1901,8 @@ function updateEmployeeLegend(){
 const leg=document.getElementById('employeeLegend');
 leg.innerHTML='<strong style="font-size:12px;color:#002745">Colaboradores:</strong>';
 const canEdit=hasPerm('edit_trips')&&!isGuest();
-data.employees.filter(e=>!e.isOtherSector).forEach(emp=>{
+const sortedEmployees = data.employees.filter(e=>!e.isOtherSector).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+sortedEmployees.forEach(emp=>{
 const item=document.createElement('div');
 item.className='legend-item'+(canEdit?' emp-draggable':'');
 item.innerHTML=`<div class="legend-color" style="background:${emp.color}"></div>${emp.name}`;
@@ -1853,11 +1916,22 @@ leg.appendChild(item);
 }
 function updateFilters(){
 const fields=[{id:'filterEmployee',type:'emp'},{id:'filterClient',type:'cli'},{id:'filterTripProject',type:'proj'},{id:'filterTripEmployee',type:'emp'},{id:'reportEmployee',type:'emp'},{id:'reportClient',type:'cli'}];
-const clients=[...new Set(data.projects.map(p=>p.client).filter(Boolean))];
-fields.forEach(f=>{const el=document.getElementById(f.id);if(!el)return;const cur=el.value;if(f.type==='emp')el.innerHTML='<option value="">Todos</option>'+data.employees.map(e=>`<option value="${e.id}" ${e.id===cur?'selected':''}>${e.name}</option>`).join('');else if(f.type==='cli')el.innerHTML='<option value="">Todos</option>'+clients.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');else if(f.type==='proj')el.innerHTML='<option value="">Todos</option>'+data.projects.map(p=>`<option value="${p.id}" ${p.id===cur?'selected':''}>${p.op} - ${p.client}</option>`).join('');});
+const clients=[...new Set(data.projects.map(p=>p.client).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+fields.forEach(f=>{const el=document.getElementById(f.id);if(!el)return;const cur=el.value;
+
+
+if(f.type==='emp'){const sortedEmps=data.employees.slice().sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));el.innerHTML='<option value="">Todos</option>'+sortedEmps.map(e=>`<option value="${e.id}" ${e.id===cur?'selected':''}>${e.name}</option>`).join('');}else if(f.type==='cli')el.innerHTML='<option value="">Todos os Clientes</option>'+clients.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');
+
+else if(f.type==='proj'){const sortedProjs=sortProjectsByOp(data.projects);el.innerHTML='<option value="">Todos</option>'+sortedProjs.map(p=>`<option value="${p.id}" ${p.id===cur?'selected':''}>${p.op} - ${p.client}</option>`).join('');}});
+
 const locEl=document.getElementById('filterInstLocation');
 if(locEl){const locations=[...new Set(data.instruments.map(i=>i.location).filter(Boolean))];const cur=locEl.value;locEl.innerHTML='<option value="">Todas</option>'+locations.map(l=>`<option value="${l}" ${l===cur?'selected':''}>${l}</option>`).join('');}
+const projClientEl=document.getElementById('filterProjectClient');
+if(projClientEl){const clients=[...new Set(data.projects.map(p=>p.client).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));const cur=projClientEl.value;projClientEl.innerHTML='<option value="">Todos</option>'+clients.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');}
+const projMachineEl=document.getElementById('filterProjectMachine');
+if(projMachineEl){const machines=[...new Set(data.projects.map(p=>p.machine).filter(Boolean))];const cur=projMachineEl.value;projMachineEl.innerHTML='<option value="">Todas as máquinas</option>'+machines.map(m=>`<option value="${m}" ${m===cur?'selected':''}>${m}</option>`).join('');}
 }
+
 function showDayDetail(dateStr){
 const [y,m,d]=dateStr.split('-').map(Number);
 document.getElementById('dayModalTitle').textContent=`${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
@@ -1873,7 +1947,16 @@ body.innerHTML=html;
 document.getElementById('dayModal').classList.add('active');
 }
 function getHolidays(year){const h={};const add=(d,m,name,type='national')=>{const key=`${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;if(!h[key])h[key]=[];h[key].push({name,type});};add(1,1,'Confraternização Universal');if(year===2025){add(1,3,'Carnaval');add(2,3,'Carnaval');add(3,3,'Carnaval');add(4,3,'Quarta-feira de Cinzas');}if(year===2026){add(16,2,'Carnaval');add(17,2,'Carnaval');add(18,2,'Carnaval');add(19,2,'Quarta-feira de Cinzas');}add(18,4,'Sexta-feira Santa');add(21,4,'Tiradentes');add(1,5,'Dia do Trabalho');add(19,6,'Corpus Christi');add(7,9,'Independência');add(12,10,'N. Sra. Aparecida');add(2,11,'Finados');add(15,11,'Proclamação República');add(20,11,'Consciência Negra');add(25,12,'Natal');add(25,1,'Aniversário SP','state');add(9,7,'Revolução Constitucionalista','state');add(4,4,'Aniversário Marília','municipal');add(3,11,'Fundação Marília','municipal');return h;}
-function renderProjectStages(containerId,values){const c=document.getElementById(containerId);c.innerHTML=STAGE_KEYS.map(k=>`<div class="stage-item"><label>${STAGE_LABELS[k]}</label><select id="${containerId}_${k}">${STAGE_OPTIONS.map(o=>`<option value="${o.value}" ${values?.[k]===o.value?'selected':''}>${o.label}</option>`).join('')}</select></div>`).join('');}
+function renderProjectStages(containerId,values){
+const filterClient=document.getElementById('filterProjectClient')?.value||'';
+const filterStatus=document.getElementById('filterProjectStatus')?.value||'';
+
+let projects=data.projects.slice();
+if(filterClient) projects=projects.filter(p=>p.client===filterClient);
+if(filterStatus==='active') projects=projects.filter(p=>p.status!=='Concluído' && p.status!=='Em garantia');
+if(filterStatus==='completed') projects=projects.filter(p=>p.status==='Concluído');
+if(filterStatus==='warranty') projects=projects.filter(p=>p.status==='Em garantia');
+const c=document.getElementById(containerId);c.innerHTML=STAGE_KEYS.map(k=>`<div class="stage-item"><label>${STAGE_LABELS[k]}</label><select id="${containerId}_${k}">${STAGE_OPTIONS.map(o=>`<option value="${o.value}" ${values?.[k]===o.value?'selected':''}>${o.label}</option>`).join('')}</select></div>`).join('');}
 function addProjectContact() {
 tempContacts.push({name:'', email:'', phone:'', role:''});
 renderProjectContacts();
@@ -1906,18 +1989,21 @@ list.innerHTML = tempContacts.map((c, i) => `
 function renderProjects(){
 if(!hasPerm('view_projects')){document.getElementById('projectsTable').innerHTML='<tr><td colspan="8" class="empty-state">Sem permissão</td></tr>';return;}
 const tbody=document.getElementById('projectsTable');
-if(!data.projects.length){tbody.innerHTML='<tr><td colspan="8" class="empty-state"><div class="empty-state-icon"></div>Nenhum projeto</td></tr>';renderPaginationControls('tab-projects', 0, 'projects', renderProjects);return;}
+const filterClient=document.getElementById('filterProjectClient')?.value||'';
+const filterStatus=document.getElementById('filterProjectStatus')?.value||'';
+let filteredProjects=data.projects.slice();
+if(filterClient) filteredProjects=filteredProjects.filter(p=>p.client===filterClient);
+if(filterStatus) filteredProjects=filteredProjects.filter(p=>{
+const allDone=STAGE_KEYS.every(k=>p[k]==='FEITO');
+const effStatus=p.status==='Concluído'?'Concluído':p.status==='Em garantia'?'Em garantia':allDone?'Concluído':'Em andamento';
+return effStatus===filterStatus;
+});
+if(!filteredProjects.length){tbody.innerHTML='<tr><td colspan="8" class="empty-state"><div class="empty-state-icon"></div>Nenhum projeto</td></tr>';renderPaginationControls('tab-projects', 0, 'projects', renderProjects);return;}
+let pageData = sortProjectsByOp(data.projects);
 
-let pageData = applyPersistentSort(data.projects, 'projects');
-
-const state = paginationState.projects;
-const total = pageData.length;
-const start = (state.page - 1) * state.limit;
-const end = state.limit === -1 ? total : start + state.limit;
-pageData = pageData.slice(start, end);
 
 tbody.innerHTML=pageData.map(p=>{const tripCount=data.trips.filter(t=>t.projectId===p.id).length;const allDone=STAGE_KEYS.every(k=>p[k]==='FEITO');let statusBadge='';if(p.status==='Concluído')statusBadge='<span class="badge badge-done">Concluído</span>';else if(p.status==='Em garantia')statusBadge='<span class="badge badge-warranty">Em garantia</span>';else if(allDone)statusBadge='<span class="badge badge-done">Concluído</span>';else statusBadge='<span class="badge badge-pending">Em andamento</span>';const asmText=p.hasAsm?`${p.asmStart||'-'} → ${p.asmEnd||'-'}`:'N/A';const actionsHtml=`<td><button class="btn btn-info btn-sm" onclick="openProjectDetailModal('${p.id}')">Detalhes</button>${hasPerm('edit_projects')?`<button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Excluir</button>`:''}</td>`;return `<tr><td><strong>${p.op}</strong></td><td>${p.client}</td><td>${p.machine}</td><td>${p.location}</td><td title="${p.scope}">${(p.scope||'').substring(0,40)}${(p.scope||'').length>40?'...':''}</td><td>${asmText}</td><td>${statusBadge}<br><small style="color:#6c757d">${tripCount} viagem(s)</small></td>${actionsHtml}</tr>`;}).join('');
-renderPaginationControls('tab-projects', total, 'projects', renderProjects);
+
 }
 function toggleAsmDates(){const h=document.getElementById('projHasAsm').checked;document.getElementById('asmStartGroup').style.display=h?'flex':'none';document.getElementById('asmEndGroup').style.display=h?'flex':'none';}
 function toggleProjOpNA() {
@@ -2015,22 +2101,36 @@ renderAll();
 notify('Projeto concluído');
 };
 } else {
-completeBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
-warrantyBtn.style.display = 'none';
-completeBtn.onclick = async () => {
-if (!currentUser.isDefault) {
-notify('Somente o Admin pode concluir projetos.', 'error');
-return;
-}
-if(!confirm('Marcar este projeto como concluído?')) return;
-p.status = 'Concluído';
-p.updatedBy = currentUser.username;
-p.updatedAt = new Date().toISOString();
-await saveToServer();
-closeModal('projectDetailModal');
-renderAll();
-notify('Projeto concluído');
-};
+    completeBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
+    warrantyBtn.style.display = hasPerm('edit_projects') ? '' : 'none'; // <-- Agora o botão de garantia aparece
+    
+    completeBtn.onclick = async () => {
+        if (!currentUser.isDefault) {
+            notify('Somente o Admin pode concluir projetos.', 'error');
+            return;
+        }
+        if(!confirm('Marcar este projeto como concluído?')) return;
+        p.status = 'Concluído';
+        p.updatedBy = currentUser.username;
+        p.updatedAt = new Date().toISOString();
+        await saveToServer();
+        closeModal('projectDetailModal');
+        renderAll();
+        notify('Projeto concluído');
+    };
+
+    // --- AÇÃO DO BOTÃO DE GARANTIA ---
+    warrantyBtn.onclick = async () => {
+        if(!confirm('Abrir garantia deste projeto? O status será alterado para "Em garantia".')) return;
+        p.status = 'Em garantia';
+        p.updatedBy = currentUser.username;
+        p.updatedAt = new Date().toISOString();
+        await saveToServer();
+        closeModal('projectDetailModal');
+        renderAll();
+        notify('Projeto em garantia');
+    };
+    // ---------------------------------
 }
 document.getElementById('projectDetailModal').classList.add('active');
 }
@@ -2161,27 +2261,52 @@ const today=new Date().toISOString().split('T')[0];
 let trips=data.trips.slice();
 if(filterProj)trips=trips.filter(t=>t.projectId===filterProj);
 if(filterEmp)trips=trips.filter(t=>(t.employeeIds||[]).includes(filterEmp));
-if(filterStatus==='future')trips=trips.filter(t=>t.end>=today||t.status==='Em andamento');
-if(filterStatus==='past')trips=trips.filter(t=>t.end<today&&t.status!=='Em andamento');
+if(filterStatus){trips=trips.filter(t=>{const eff=getTripEffectiveStatus(t);return eff===filterStatus;});}
 
-trips = applyPersistentSort(trips, 'trips');
+trips = trips.slice().sort((a, b) => {
+    const pa = data.projects.find(p => p.id === a.projectId);
+    const pb = data.projects.find(p => p.id === b.projectId);
+    const opA = pa?.op || '';
+    const opB = pb?.op || '';
+    const numA = parseInt(opA.replace(/\D/g, '')) || 0;
+    const numB = parseInt(opB.replace(/\D/g, '')) || 0;
+    if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
+    return opA.localeCompare(opB, 'pt-BR', {numeric: true});
+});
 
 const total=data.trips.length;const future=data.trips.filter(t=>t.end>=today||t.status==='Em andamento').length;const past=data.trips.filter(t=>t.end<today&&t.status!=='Em andamento').length;
 document.getElementById('tripStats').innerHTML=`<div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${total}</div></div><div class="stat-card"><div class="stat-label">Futuras</div><div class="stat-value" style="color:#002745">${future}</div></div><div class="stat-card"><div class="stat-label">Realizadas</div><div class="stat-value" style="color:#28a745">${past}</div></div><div class="stat-card"><div class="stat-label">Projetos</div><div class="stat-value" style="color:#6f42c1">${data.projects.length}</div></div>`;
-const state = paginationState.trips;
-const totalFiltered = trips.length;
-const start = (state.page - 1) * state.limit;
-const end = state.limit === -1 ? totalFiltered : start + state.limit;
-const pageData = trips.slice(start, end);
-if(!pageData.length){tbody.innerHTML='<tr><td colspan="9" class="empty-state"><div class="empty-state-icon">✈️</div>Nenhuma viagem</td></tr>';renderPaginationControls('tab-trips', totalFiltered, 'trips', renderTrips);return;}
-tbody.innerHTML=pageData.map(t=>{const proj=data.projects.find(p=>p.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}${e.isOtherSector?'<small style="opacity:0.7">('+e.sector+')</small>':''}</span>`).join(' ');const effStatus=getTripEffectiveStatus(t);const statusClass=effStatus==='Concluída'?'badge-done':effStatus==='Cancelada'?'badge-no':effStatus==='Em aberto'?'badge-warning':effStatus==='Em andamento'?'badge-partial':'badge-pending';const payBadge=(t.paymentAtrelado==='Sim')?'<span class="badge badge-done">Sim</span>':'<span class="badge badge-na">Não</span>';const actionsHtml=hasPerm('view_trips')?`<td><button class="btn btn-info btn-sm" onclick="openTripDetailModal('${t.id}')">Detalhes</button>${hasPerm('edit_trips')?`<button class="btn btn-danger btn-sm" onclick="deleteTrip('${t.id}')">Excluir</button>`:''}</td>`:'<td>-</td>';
+
+
+
+if(!trips.length){tbody.innerHTML='<tr><td colspan="9" class="empty-state"><div class="empty-state-icon">✈️</div>Nenhuma viagem</td></tr>';return;}
+tbody.innerHTML=trips.map(t=>{const proj=data.projects.find(p=>p.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}${e.isOtherSector?'<small style="opacity:0.7">('+e.sector+')</small>':''}</span>`).join(' ');const effStatus=getTripEffectiveStatus(t);const statusClass=effStatus==='Concluída'?'badge-done':effStatus==='Cancelada'?'badge-no':effStatus==='Em aberto'?'badge-warning':effStatus==='Em andamento'?'badge-partial':effStatus==='Necessária'?'badge-na':'badge-pending';const payBadge=(t.paymentAtrelado==='Sim')?'<span class="badge badge-done">Sim</span>':'<span class="badge badge-na">Não</span>';const actionsHtml=hasPerm('view_trips')?`<td><button class="btn btn-info btn-sm" onclick="openTripDetailModal('${t.id}')">Detalhes</button>${hasPerm('edit_trips')?`<button class="btn btn-danger btn-sm" onclick="deleteTrip('${t.id}')">Excluir</button>`:''}</td>`:'<td>-</td>';
 const startDateDisplay = t.dateUndefined ? '<span class="badge badge-warning">Data pendente</span>' : t.start;
 const endDateDisplay = t.dateUndefined ? '' : t.end;
 return `<tr><td><strong>${proj?.op||'-'}</strong></td><td>${proj?.client||'-'}</td><td>${t.type}</td><td>${startDateDisplay}</td><td>${endDateDisplay}</td><td>${empsHtml||'-'}</td><td><span class="badge ${statusClass}">${effStatus}</span></td><td>${payBadge}</td>${actionsHtml}</tr>`;
 }).join('');
-renderPaginationControls('tab-trips', totalFiltered, 'trips', renderTrips);
 }
-function openTripModal(id){if(!requirePermission('edit_trips','editar viagens'))return;editingId=id||null;document.getElementById('tripModalTitle').textContent=id?'Editar Viagem':'Nova Viagem';document.getElementById('tripConflictAlert').innerHTML='';conflictIgnored=false;const projSel=document.getElementById('tripProject');projSel.innerHTML=data.projects.map(p=>`<option value="${p.id}">${p.op} - ${p.client}</option>`).join('');const empDiv=document.getElementById('tripEmployees');empDiv.innerHTML=data.employees.map(e=>`<label style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:white;border:1px solid #e9ecef;border-radius:4px;cursor:pointer;font-size:12px"><input type="checkbox" value="${e.id}" class="trip-emp-check" onchange="checkTripConflicts()"><span style="width:12px;height:12px;border-radius:50%;background:${e.color};display:inline-block"></span>${e.name}${e.isOtherSector?' <span style="color:#6c757d;font-size:10px">('+e.sector+')</span>':''}</label>`).join('')||'<span style="color:#6c757d;font-size:12px">Cadastre colaboradores</span>';if(id){const t=data.trips.find(x=>x.id===id);projSel.value=t.projectId;document.getElementById('tripStart').value=t.start;document.getElementById('tripEnd').value=t.end;document.getElementById('tripNotes').value=t.notes;document.getElementById('tripStatus').value=t.status;document.getElementById('tripPayment').value=t.paymentAtrelado||'Não';(t.employeeIds||[]).forEach(eid=>{const cb=empDiv.querySelector(`input[value="${eid}"]`);if(cb)cb.checked=true;});updateTripStages();setTimeout(()=>{if(t.stages)Object.keys(t.stages).forEach(key=>{const s=document.getElementById('tripStage_'+key);if(s)s.value=t.stages[key];});checkTripConflicts();},100);}else{['tripStart','tripEnd','tripNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('tripStatus').value='Agendada';document.getElementById('tripPayment').value='Sim';document.querySelectorAll('.trip-emp-check').forEach(c=>c.checked=false);updateTripStages();}
+function openTripModal(id){if(!requirePermission('edit_trips','editar viagens'))return;editingId=id||null;document.getElementById('tripModalTitle').textContent=id?'Editar Viagem':'Nova Viagem';document.getElementById('tripConflictAlert').innerHTML='';conflictIgnored=false;
+
+const projSel=document.getElementById('tripProject');
+const availableProjects = data.projects
+    .filter(p => p.status === 'Em andamento' || p.status === 'Em garantia')
+    .sort((a, b) => {
+        // Ordenação numérica se possível, senão alfabética
+        const numA = parseInt(a.op.replace(/\D/g, '')) || 0;
+        const numB = parseInt(b.op.replace(/\D/g, '')) || 0;
+        if (numA !== numB && numA > 0 && numB > 0) {
+            return numA - numB;
+        }
+        return a.op.localeCompare(b.op, 'pt-BR', {numeric: true});
+    });
+projSel.innerHTML=availableProjects.map(p=>`<option value="${p.id}">${p.op} - ${p.client}</option>`).join('');
+
+const empDiv=document.getElementById('tripEmployees');
+const sortedEmployees = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+empDiv.innerHTML=sortedEmployees.map(e=>`<label style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:white;border:1px solid #e9ecef;border-radius:4px;cursor:pointer;font-size:12px"><input type="checkbox" value="${e.id}" class="trip-emp-check" onchange="checkTripConflicts()"><span style="width:12px;height:12px;border-radius:50%;background:${e.color};display:inline-block"></span>${e.name}${e.isOtherSector?' <span style="color:#6c757d;font-size:10px">('+e.sector+')</span>':''}</label>`).join('')||'<span style="color:#6c757d;font-size:12px">Cadastre colaboradores</span>';
+
+if(id){const t=data.trips.find(x=>x.id===id);projSel.value=t.projectId;document.getElementById('tripStart').value=t.start;document.getElementById('tripEnd').value=t.end;document.getElementById('tripNotes').value=t.notes;document.getElementById('tripStatus').value=t.status;document.getElementById('tripPayment').value=t.paymentAtrelado||'Não';(t.employeeIds||[]).forEach(eid=>{const cb=empDiv.querySelector(`input[value="${eid}"]`);if(cb)cb.checked=true;});updateTripStages();setTimeout(()=>{if(t.stages)Object.keys(t.stages).forEach(key=>{const s=document.getElementById('tripStage_'+key);if(s)s.value=t.stages[key];});checkTripConflicts();},100);}else{['tripStart','tripEnd','tripNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('tripStatus').value='Em aberto';document.getElementById('tripPayment').value='Sim';document.querySelectorAll('.trip-emp-check').forEach(c=>c.checked=false);updateTripStages();}
 const dateUndefinedChk = document.getElementById('tripDateUndefined');
 if (id) {
   const t = data.trips.find(x => x.id === id);
@@ -2189,6 +2314,10 @@ if (id) {
 } else {
   dateUndefinedChk.checked = false;
 }
+
+
+
+
 toggleTripDateUndefined();
 document.getElementById('tripModal').classList.add('active');}
 async function saveTrip(){
@@ -2201,14 +2330,43 @@ notify('Existem conflitos de datas (viagens ou férias). Clique em "Ignorar" par
 return;
 }
 }
+
+
+
+
 const employeeIds=[...document.querySelectorAll('.trip-emp-check:checked')].map(c=>c.value);
 const projId=document.getElementById('tripProject').value;
 const stages={};
 STAGE_KEYS.forEach(k=>{const s=document.getElementById('tripStage_'+k);stages[k]=s?s.value:'NA';});
-const dateUndefined = document.getElementById('tripDateUndefined').checked;
-const trip={id:editingId||Date.now().toString(),projectId:projId,type:'Viagem',start: dateUndefined ? '' : document.getElementById('tripStart').value, end: dateUndefined ? '' : document.getElementById('tripEnd').value, dateUndefined: dateUndefined, notes:document.getElementById('tripNotes').value,status:document.getElementById('tripStatus').value,paymentAtrelado:document.getElementById('tripPayment').value,employeeIds,stages};
+
+// --- NOVA LÓGICA DE STATUS AUTOMÁTICO ---
+const dateUndefined = document.getElementById('tripDateUndefined')?.checked || false;
+let finalStatus = document.getElementById('tripStatus').value;
+
+if (dateUndefined) {
+    finalStatus = 'Em aberto'; // Se não tem data, força "Em aberto"
+} else if (finalStatus === 'Em aberto') {
+    finalStatus = 'Agendada'; // Se tinha data indefinida e agora definiu, muda para "Agendada"
+}
+
+const trip={
+    id:editingId||Date.now().toString(),
+    projectId:projId,
+    type:'Viagem',
+    start: dateUndefined ? '' : document.getElementById('tripStart').value, 
+    end: dateUndefined ? '' : document.getElementById('tripEnd').value, 
+    dateUndefined: dateUndefined, 
+    notes:document.getElementById('tripNotes').value,
+    status:finalStatus,
+    paymentAtrelado:document.getElementById('tripPayment').value,
+    employeeIds,
+    stages
+};
+
 if(!trip.projectId){notify('Projeto obrigatório','error');return;}
 if(!dateUndefined && (!trip.start || !trip.end)){notify('Início e fim obrigatórios (ou marque "Data não definida")','error');return;}
+
+
 if(editingId){const idx=data.trips.findIndex(t=>t.id===editingId);trip.createdBy = data.trips[idx].createdBy;trip.createdAt = data.trips[idx].createdAt;trip.updatedBy = currentUser.username;trip.updatedAt = new Date().toISOString();data.trips[idx]=trip;}else{trip.createdBy = currentUser.username;trip.createdAt = new Date().toISOString();data.trips.push(trip);}
 mergeAdjacentTrips(trip);
 await saveToServer();closeModal('tripModal');renderAll();notify('Viagem salva');
@@ -2514,12 +2672,11 @@ if(!hasPerm('view_employees')){document.getElementById('employeesTable').innerHT
 const tbody=document.getElementById('employeesTable');
 
 // Separa funcionários do meu setor e de outros setores
-const mySectorEmps=data.employees.filter(e=>!e.isOtherSector);
-const otherSectorEmps=data.employees.filter(e=>e.isOtherSector);
+const mySectorEmps=data.employees.filter(e=>!e.isOtherSector).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+const otherSectorEmps=data.employees.filter(e=>e.isOtherSector).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
 
 if(!mySectorEmps.length && !otherSectorEmps.length){
 tbody.innerHTML='<tr><td colspan="6" class="empty-state"><div class="empty-state-icon">👥</div>Nenhum colaborador</td></tr>';
-renderPaginationControls('tab-employees', 0, 'employees', renderEmployees);
 return;
 }
 
@@ -2548,7 +2705,7 @@ html+=`<tr style="background:#f8f9fa;"><td><div style="width:24px;height:24px;bo
 
 tbody.innerHTML=html;
 const total=data.employees.length;
-renderPaginationControls('tab-employees', total, 'employees', renderEmployees);
+
 }function addDays(dateStr,days){const d=new Date(dateStr);d.setDate(d.getDate()+days);return d.toISOString().split('T')[0];}
 function daysBetween(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000);}
 function mergeAdjacentTrips(trip){
@@ -2683,7 +2840,13 @@ const path = `H:\\SOFTWARES E PLANILHAS\\PISEC\\funcionarios\\${emp.name}\\${doc
 document.getElementById('docFilePath').value = path;
 }
 }
-function openDocModal(id,employeeId){if(!requirePermission('edit_documents','editar documentos'))return;editingId=id||null;document.getElementById('docModalTitle').textContent=id?'Editar Documento':'Novo Documento';const empSel=document.getElementById('docEmployee');empSel.innerHTML=data.employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');if(id){const d=data.documents.find(x=>x.id===id);empSel.value=d.employeeId;document.getElementById('docType').value=d.type;document.getElementById('docIssue').value=d.issue||'';document.getElementById('docExpiry').value=d.expiry||'';document.getElementById('docExpiryIndef').checked=!!d.expiryIndef;document.getElementById('docExpiry').disabled=!!d.expiryIndef;document.getElementById('docCritical').checked=!!d.critical;document.getElementById('docFilePath').value=d.filePath||'';document.getElementById('docNotes').value=d.notes||'';}else{document.getElementById('docIssue').value='';document.getElementById('docExpiry').value='';document.getElementById('docExpiry').disabled=false;document.getElementById('docExpiryIndef').checked=false;document.getElementById('docCritical').checked=false;document.getElementById('docFilePath').value='';document.getElementById('docNotes').value='';if(employeeId)empSel.value=employeeId;updateDocFilePath();}document.getElementById('docModal').classList.add('active');}
+function openDocModal(id,employeeId){if(!requirePermission('edit_documents','editar documentos'))return;editingId=id||null;document.getElementById('docModalTitle').textContent=id?'Editar Documento':'Novo Documento';
+
+const empSel=document.getElementById('docEmployee');
+const sortedEmployees = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+empSel.innerHTML=sortedEmployees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+
+if(id){const d=data.documents.find(x=>x.id===id);empSel.value=d.employeeId;document.getElementById('docType').value=d.type;document.getElementById('docIssue').value=d.issue||'';document.getElementById('docExpiry').value=d.expiry||'';document.getElementById('docExpiryIndef').checked=!!d.expiryIndef;document.getElementById('docExpiry').disabled=!!d.expiryIndef;document.getElementById('docCritical').checked=!!d.critical;document.getElementById('docFilePath').value=d.filePath||'';document.getElementById('docNotes').value=d.notes||'';}else{document.getElementById('docIssue').value='';document.getElementById('docExpiry').value='';document.getElementById('docExpiry').disabled=false;document.getElementById('docExpiryIndef').checked=false;document.getElementById('docCritical').checked=false;document.getElementById('docFilePath').value='';document.getElementById('docNotes').value='';if(employeeId)empSel.value=employeeId;updateDocFilePath();}document.getElementById('docModal').classList.add('active');}
 async function saveDocument(){if(!requirePermission('edit_documents','salvar documentos'))return;const expiryIndef=document.getElementById('docExpiryIndef').checked;const doc={id:editingId||Date.now().toString(),employeeId:document.getElementById('docEmployee').value,type:document.getElementById('docType').value,issue:document.getElementById('docIssue').value,expiry:expiryIndef?'':document.getElementById('docExpiry').value,expiryIndef,critical:document.getElementById('docCritical').checked,filePath:document.getElementById('docFilePath').value,notes:document.getElementById('docNotes').value};if(!doc.employeeId||!doc.type){notify('Colaborador e tipo obrigatórios','error');return;}if(editingId){const idx=data.documents.findIndex(d=>d.id===editingId);data.documents[idx]=doc;}else{data.documents.push(doc);}await saveToServer();closeModal('docModal');renderAll();if(employeeDetailCurrentId)renderEmployeeDetailDocs(employeeDetailCurrentId);notify('Documento salvo');}
 function editDocument(id){openDocModal(id);}
 async function deleteDocument(id){if(!requirePermission('edit_documents','excluir documentos'))return;if(!confirm('Excluir?'))return;data.documents=data.documents.filter(d=>d.id!==id);await saveToServer();renderAll();notify('Excluído');}
@@ -2701,25 +2864,29 @@ else if(filterStatus==='intervention')insts=insts.filter(i=>i.status==='interven
 else if(filterStatus==='discarded')insts=insts.filter(i=>i.status==='discarded');
 if(filterLoc)insts=insts.filter(i=>i.location===filterLoc);
 
-insts = applyPersistentSort(insts, 'instruments');
+insts = insts.slice().sort((a, b) => {
+    const numA = parseInt((a.instId || '').replace(/\D/g, '')) || 0;
+    const numB = parseInt((b.instId || '').replace(/\D/g, '')) || 0;
+    if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
+    return (a.instId || '').localeCompare(b.instId || '', 'pt-BR', {numeric: true});
+});
 
-const state = paginationState.instruments;
-const total = insts.length;
-const start = (state.page - 1) * state.limit;
-const end = state.limit === -1 ? total : start + state.limit;
-const pageData = insts.slice(start, end);
-if(!pageData.length){tbody.innerHTML='<tr><td colspan="10" class="empty-state"><div class="empty-state-icon">🔧</div>Nenhum instrumento</td></tr>';renderPaginationControls('sub-inst-db', total, 'instruments', renderInstruments);return;}
+
+
+
+if(!insts.length){tbody.innerHTML='<tr><td colspan="10" class="empty-state"><div class="empty-state-icon">🔧</div>Nenhum instrumento</td></tr>';return;}
 const statusLabels={ok:'<span class="badge badge-done">OK</span>',intervention:'<span class="badge badge-warning">Intervenção</span>',discarded:'<span class="badge badge-expired">Descartado</span>'};
-tbody.innerHTML=pageData.map(i=>{
+tbody.innerHTML=insts.map(i=>{
 const inUse=isInstrumentInUse(i.id);
 const calibStatus=!i.nextCalib?'':i.nextCalib<today?'<span class="badge badge-expired">Vencida</span>':i.nextCalib<=addDays(today,90)?'<span class="badge badge-warning">Vence em breve</span>':'<span class="badge badge-active">OK</span>';
 const actionsHtml=`<td>
 <button class="btn btn-info btn-sm" onclick="printInstrumentNote('${i.instId}')" style="margin-right:4px;">Nota</button>
-<button class="btn btn-info btn-sm" onclick="openInstrumentDetailModal('${i.id}')">Detalhes</button>
+<button class="btn btn-info btn-sm" onclick="openInstrumentDetailModal('${i.id}')" style="margin-right:4px;">Detalhes</button>
+${hasPerm('edit_instruments')?`<button class="btn btn-danger btn-sm" onclick="deleteInstrument('${i.id}')">Excluir</button>`:''}
 </td>`;
 return `<tr><td><strong>${i.instId||'-'}</strong></td><td title="${i.description||''}">${(i.description||'').substring(0,30)}${(i.description||'').length>30?'...':''}</td><td>${i.manufacturer||'-'}</td><td>${i.model||'-'}</td><td>${i.qty||0}${inUse?'<small style="color:#f0ad4e">(uso)</small>':''}</td><td>${statusLabels[i.status]||'-'}</td><td>${i.location||'-'}</td><td>${i.nextCalib||'-'} ${calibStatus}</td>${actionsHtml}</tr>`;
 }).join('');
-renderPaginationControls('sub-inst-db', total, 'instruments', renderInstruments);
+
 }
 function isInstrumentInUse(instId){return data.checkouts.some(c=>c.instrumentIds.includes(instId)&&!c.returnDate);}
 function openInstrumentModal(id){if(!requirePermission('edit_instruments','cadastrar instrumentos'))return;editingId=id||null;document.getElementById('instrumentModalTitle').textContent=id?'Editar Instrumento':'Novo Instrumento';if(id){const i=data.instruments.find(x=>x.id===id);document.getElementById('instId').value=i.instId||'';document.getElementById('instDesc').value=i.description||'';document.getElementById('instManufacturer').value=i.manufacturer||'';document.getElementById('instModel').value=i.model||'';document.getElementById('instCapacity').value=i.capacity||'';document.getElementById('instQty').value=i.qty||1;document.getElementById('instMinQty').value=i.minQty||1;document.getElementById('instStatus').value=i.status||'ok';document.getElementById('instLocation').value=i.location||'';document.getElementById('instLastResp').value=i.lastResp||'';document.getElementById('instAcqDate').value=i.acqDate||'';document.getElementById('instCalib').value=i.calibDate||'';document.getElementById('instCalibFreq').value=i.calibFreq||12;document.getElementById('instNextCalib').value=i.nextCalib||'';document.getElementById('instNotes').value=i.notes||'';}else{['instId','instDesc','instManufacturer','instModel','instCapacity','instLocation','instLastResp','instAcqDate','instCalib','instNextCalib','instNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('instQty').value=1;document.getElementById('instMinQty').value=1;document.getElementById('instStatus').value='ok';document.getElementById('instCalibFreq').value=12;}document.getElementById('instrumentModal').classList.add('active');}
@@ -2854,13 +3021,14 @@ function openCheckoutModal(){
 if(!requirePermission('checkout','retirar instrumentos'))return;
 document.getElementById('checkoutTitle').textContent='Retirada de Instrumentos';
 const empSel=document.getElementById('checkoutEmployee');
-empSel.innerHTML=data.employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')||'<option value="">Cadastre colaborador</option>';
+const sortedEmployees = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+empSel.innerHTML=sortedEmployees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')||'<option value="">Cadastre colaboradores</option>';
 const projSel=document.getElementById('checkoutProject');
 projSel.innerHTML=data.projects.map(p=>`<option value="${p.id}">${p.op} - ${p.client}</option>`).join('')+'<option value="__other__">Outros</option>';
 document.getElementById('checkoutProjectOther').value='';
 document.getElementById('checkoutProjectOtherGroup').style.display='none';
 const list=document.getElementById('checkoutList');
-const available=data.instruments.filter(i=>!isInstrumentInUse(i.id)&&i.status==='ok');
+const available=data.instruments.filter(i=>!isInstrumentInUse(i.id)&&i.status==='ok').sort((a, b) => a.instId.localeCompare(b.instId, 'pt-BR', {numeric: true}));
 if(!available.length){list.innerHTML='<div style="color:#6c757d;font-size:12px">Nenhum disponível</div>';}
 else{list.innerHTML=available.map(i=>`<div class="checkout-item"><input type="checkbox" value="${i.id}" class="checkout-check" onchange="toggleCheckoutQty('${i.id}')"><strong>${i.instId}</strong> - ${i.description} <small style="color:#6c757d">(${i.manufacturer||''} ${i.model||''})</small><input type="number" min="1" max="${i.qty||1}" value="1" id="checkoutQty_${i.id}" class="checkout-qty" style="width:60px;margin-left:auto;padding:4px;border:1px solid #ced4da;border-radius:4px" disabled title="Quantidade"></div>`).join('');}
 document.getElementById('checkoutDate').value=new Date().toISOString().split('T')[0];
@@ -3149,55 +3317,6 @@ notify('Rascunho de e-mail aberto no seu cliente padrão', 'success');
 return true;
 }
 function importBackup(event){if(!requirePermission('import_export','importar backup'))return;const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=async e=>{try{const imported=JSON.parse(e.target.result);if(imported.projects&&imported.trips&&imported.employees){if(confirm('Substituir dados atuais?')){data=imported;if(!data.users||data.users.length===0)data.users=[{id:'admin_default',username:'michel.paulino@brunnschweiler.com.br',password:'Admin',fullName:'Michel Paulino',email:'michel.paulino@brunnschweiler.com.br',role:'Administrador',isDefault:true,permissions:ALL_PERMISSIONS.map(p=>p.key)}];await saveToServer();renderAll();notify('Importado');}}else{notify('Arquivo inválido','error');}}catch(err){notify('Erro: '+err.message,'error');}};reader.readAsText(file);event.target.value='';}
-function renderPaginationControls(containerId, totalItems, tabKey, renderFunc) {
-const container = document.getElementById(containerId);
-if(!container) return;
-let pagDiv = container.querySelector('.pagination-controls');
-if(!pagDiv) {
-pagDiv = document.createElement('div');
-pagDiv.className = 'pagination-controls';
-pagDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding:10px; background:white; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); font-size:13px; flex-wrap:wrap; gap:10px;';
-container.appendChild(pagDiv);
-}
-const state = paginationState[tabKey];
-const totalPages = state.limit === -1 ? 1 : Math.ceil(totalItems / state.limit) || 1;
-let html = `<div>Mostrando ${totalItems} itens | Por página:
-<select onchange="changePaginationLimit('${tabKey}', this.value)" style="padding:4px; border-radius:4px; border:1px solid #ced4da;">
-<option value="10" ${state.limit===10?'selected':''}>10</option>
-<option value="25" ${state.limit===25?'selected':''}>25</option>
-<option value="50" ${state.limit===50?'selected':''}>50</option>
-<option value="100" ${state.limit===100?'selected':''}>100</option>
-<option value="-1" ${state.limit===-1?'selected':''}>Todos</option>
-</select>
-</div>`;
-if(state.limit !== -1 && totalPages > 1) {
-html += `<div style="display:flex; gap:8px; align-items:center;">
-<button class="btn btn-sm btn-light" onclick="changePaginationPage('${tabKey}', 1)" ${state.page===1?'disabled':''}>«</button>
-<button class="btn btn-sm btn-light" onclick="changePaginationPage('${tabKey}', ${state.page-1})" ${state.page===1?'disabled':''}>‹</button>
-<span>Página ${state.page} de ${totalPages}</span>
-<button class="btn btn-sm btn-light" onclick="changePaginationPage('${tabKey}', ${state.page+1})" ${state.page===totalPages?'disabled':''}>›</button>
-<button class="btn btn-sm btn-light" onclick="changePaginationPage('${tabKey}', ${totalPages})" ${state.page===totalPages?'disabled':''}>»</button>
-</div>`;
-} else {
-html += `<div></div>`;
-}
-pagDiv.innerHTML = html;
-}
-function changePaginationLimit(tabKey, limit) {
-paginationState[tabKey].limit = parseInt(limit);
-paginationState[tabKey].page = 1;
-if(tabKey==='projects') renderProjects();
-else if(tabKey==='trips') renderTrips();
-else if(tabKey==='employees') renderEmployees();
-else if(tabKey==='instruments') renderInstruments();
-}
-function changePaginationPage(tabKey, page) {
-paginationState[tabKey].page = page;
-if(tabKey==='projects') renderProjects();
-else if(tabKey==='trips') renderTrips();
-else if(tabKey==='employees') renderEmployees();
-else if(tabKey==='instruments') renderInstruments();
-}
 function wrapFiltersWithLabels() {
 const labelMap = {
 'filterTripProject': 'Filtrar por Projeto',
@@ -3206,6 +3325,8 @@ const labelMap = {
 'filterInstStatus': 'Filtrar por Situação',
 'filterInstLocation': 'Filtrar por Localização',
 'filterCheckoutStatus': 'Filtrar por Status',
+'filterProjectClient': 'Filtrar por Cliente',
+'filterProjectStatus': 'Filtrar por Status',
 'calViewMode': 'Visualização',
 'filterEmployee': 'Filtrar por Colaborador',
 'filterClient': 'Filtrar por Cliente',
@@ -3236,15 +3357,36 @@ wrapper.appendChild(el);
 }
 function openContractModal() {
 const empSel = document.getElementById('contractEmployee');
-empSel.innerHTML = '<option value="">Selecione...</option>' + data.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+const sortedEmployees = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+empSel.innerHTML = '<option value="">Selecione...</option>' + sortedEmployees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    
 const projSel = document.getElementById('contractProject');
-projSel.innerHTML = '<option value="">Selecione...</option>' + data.projects.map(p => `<option value="${p.id}">${p.op} - ${p.client}</option>`).join('');
-document.getElementById('contractEmployeeCpf').value = '';
-document.getElementById('contractW1Name').value = '';
-document.getElementById('contractW1Cpf').value = '';
-document.getElementById('contractW2Name').value = '';
-document.getElementById('contractW2Cpf').value = '';
-document.getElementById('contractModal').classList.add('active');
+const availableProjects = data.projects
+    .filter(p => p.status === 'Em andamento' || p.status === 'Em garantia')
+    .sort((a, b) => {
+        const numA = parseInt(a.op.replace(/\D/g, '')) || 0;
+        const numB = parseInt(b.op.replace(/\D/g, '')) || 0;
+        if (numA !== numB && numA > 0 && numB > 0) {
+            return numA - numB;
+        }
+        return a.op.localeCompare(b.op, 'pt-BR', {numeric: true});
+    });
+projSel.innerHTML = '<option value="">Selecione...</option>' + availableProjects.map(p => `<option value="${p.id}">${p.op} - ${p.client}</option>`).join('');
+    
+    // Preenche testemunhas com funcionários cadastrados
+    const w1Sel = document.getElementById('contractW1Name');
+    const w2Sel = document.getElementById('contractW2Name');
+    const witnessOptions = '<option value="">Selecione...</option>' + 
+                          data.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    w1Sel.innerHTML = witnessOptions;
+    w2Sel.innerHTML = witnessOptions;
+    
+    document.getElementById('contractEmployeeCpf').value = '';
+    document.getElementById('contractW1Cpf').value = '';
+    document.getElementById('contractW2Cpf').value = '';
+    document.getElementById('contractServiceDesc').value = '';
+    
+    document.getElementById('contractModal').classList.add('active');
 }
 function autoFillContractEmployee() {
     const empId = document.getElementById('contractEmployee').value;
@@ -3290,8 +3432,35 @@ if (emp && emp.cpf) {
 cpfInput.value = emp.cpf;
 }
 }
+function autoFillWitnessCpfFromSelect(witnessNum) {
+    const select = document.getElementById(`contractW${witnessNum}Name`);
+    const cpfInput = document.getElementById(`contractW${witnessNum}Cpf`);
+    const empId = select.value;
+    
+    if (empId && empId !== '__outro__') {
+        const emp = data.employees.find(e => e.id === empId);
+        if (emp && emp.cpf) {
+            cpfInput.value = emp.cpf;
+            cpfInput.readOnly = true;
+            cpfInput.style.background = '#e9ecef';
+        } else {
+            cpfInput.value = '';
+            cpfInput.readOnly = false;
+            cpfInput.style.background = '';
+        }
+    } else if (empId === '__outro__') {
+        cpfInput.value = '';
+        cpfInput.readOnly = false;
+        cpfInput.style.background = '';
+    } else {
+        cpfInput.value = '';
+        cpfInput.readOnly = true;
+        cpfInput.style.background = '#e9ecef';
+    }
+}
 function generateContractPDF() {
 const empId = document.getElementById('contractEmployee').value;
+const serviceDesc = document.getElementById('contractServiceDesc').value;
 const emp = data.employees.find(e => e.id === empId);
 if (!emp) { notify('Selecione um colaborador', 'error'); return; }
 const w1Name = document.getElementById('contractW1Name').value;
@@ -3313,7 +3482,7 @@ const html = `
 <head>
 <title>Contrato de Prestação de Serviços</title>
 <style>
-body { font-family: 'Times New Roman', serif; font-size: 10pt; line-height: 1.5; padding: 40px; max-width: 800px; margin: 0 auto; }
+body { font-family: 'Times New Roman', serif; font-size: 10pt; line-height: 1.5; padding: 30px; max-width: 800px; margin: 0 auto; }
 h2 { text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 20px; }
 p { text-align: justify; margin-bottom: 15px; }
 .signatures { margin-top: 60px; display: flex; justify-content: space-between; }
@@ -3326,13 +3495,13 @@ p { text-align: justify; margin-bottom: 15px; }
 <body>
 <h2>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h2>
 <p>Pelo presente instrumento particular, tendo de um lado, na qualidade de CONTRATADO, a empresa ${companyName}, estabelecida na ${companyAddress}, inscrita no CNPJ sob o nº. ${companyCnpj}, neste ato representada por seu proprietário ao final firmado, nos termos de seu contrato social, e de outro lado, na qualidade de CONTRATANTE, a empresa BRUNNSCHWEILER LATINA LTDA, inscrita no CNPJ sob o nº. 01.214.149/0001-36, situada à AV. Yusaburo Sasazaki, 1040, Distrito Industrial Santo Barion, na cidade de Marília- SP, neste ato representada pelo seu sócio-diretor, ao final firmado, nos termos de seu contrato social, tem entre si justo e contratado ao presente contrato específico de prestação de serviços que reger-se-á pelas seguintes cláusulas e condições:</p>
-<p>1- A CONTRATADA, empresa legalmente constituída, tem por objeto a prestação de serviços de supervisão de instalação de ventilador referente ao pedido de compra nº ${poNumber} entre a CONTRATANTE e a empresa ${finalClient}, localizada em ${serviceLocation}, que fica fazendo parte integrante deste contrato para todos os fins e efeitos;</p>
+<p>1- A CONTRATADA, empresa legalmente constituída, tem por objeto a prestação de serviços de ${serviceDesc} referente ao pedido de compra nº ${poNumber} entre a CONTRATANTE e a empresa ${finalClient}, localizada em ${serviceLocation}, que fica fazendo parte integrante deste contrato para todos os fins e efeitos;</p>
 <p>2- A CONTRATANTE não guarda qualquer subordinação jurídica ou dependência hierárquica, nem tampouco qualquer dependência econômica, técnica ou social da CONTRATADA;</p>
 <p>3- O pagamento do valor do contrato devido à CONTRATADA será efetuado após o término da prestação dos serviços, através de crédito em conta. Todas as despesas, taxas e impostos que incidam sobre o pagamento serão responsabilidade exclusiva da CONTRATADA;</p>
 <p>4- O presente contrato é firmado pelo prazo de ${duration} (${durationWords}) dias, contado de sua assinatura;</p>
 <p>5- Os contratantes do presente contrato elegem o foro de Marília, estado de São Paulo, para conhecer de todas as questões resultantes do presente contrato e da representação comercial aqui contratada, com expressa renúncia a qualquer outro, por mais privilegiado que seja;</p>
 <p>E, por assim estarem justos e contratados, firmam o presente em duas vias de igual teor e forma, perante duas testemunhas abaixo.</p>
-<p style="text-align: right; margin-top: 40px;">Marília, ${today}.</p><br><br>
+<p style="text-align: right; margin-top: 40px;">Marília, ${today}.</p>
 <div class="signatures">
 <div class="sig-block">
 <div class="sig-line">Paulo Roberto Brito Boechat<br>BRUNNSCHWEILER LATINA LTDA</div>
@@ -3341,7 +3510,6 @@ p { text-align: justify; margin-bottom: 15px; }
 <div class="sig-line">${emp.name}<br>${companyName}</div>
 </div>
 </div>
-<br><br>
 <div class="witnesses">
 <div class="sig-block">
 <div class="sig-line">Testemunha<br>${w1Name}<br>CPF: ${w1Cpf}</div>
@@ -3397,6 +3565,19 @@ async function init(){
     setInterval(() => { if(currentUser) loadFromServer(); }, 20000);
     document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && currentUser) loadFromServer(); });
     wrapFiltersWithLabels();
+}
+function printCalendarToPDF() {
+    // Garante que a aba calendário está ativa
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    const calTab = document.querySelector('.tab[data-tab="calendar"]');
+    if (calTab) calTab.classList.add('active');
+    document.getElementById('tab-calendar').classList.add('active');
+    
+    // Chama a impressão do navegador (usará o CSS @media print)
+    setTimeout(() => {
+        window.print();
+    }, 300);
 }
 init();
 </script>
