@@ -433,7 +433,7 @@ Total Geral: R$ <span id="expensesTotalDisplay">0,00</span>
 <div class="modal-header"><div class="modal-title">Gerar Contrato de Prestação de Serviços</div><button class="modal-close" onclick="closeModal('contractModal')">×</button></div>
 <div class="modal-body">
 <div class="form-grid">
-<div class="form-group"><label>Colaborador (Contratado)</label><select id="contractEmployee" onchange="autoFillContractEmployee()"><option value="">Selecione...</option><option value="__outro__">Outro (digitar manualmente)</option></select></div>
+<div class="form-group"><label>Empresa Contratada</label><select id="contractEmployee" onchange="autoFillContractEmployee()"><option value="">Selecione...</option></select></div>
 <div class="form-group" id="contractEmployeeOtherGroup" style="display:none;"><label>Nome do Contratado (Outro)</label><input type="text" id="contractEmployeeOther" placeholder="Digite o nome completo"></div>
 <div class="form-group"><label>CPF do Colaborador</label><input type="text" id="contractEmployeeCpf" readonly></div>
 <div class="form-group"><label>OP (Projeto)</label><select id="contractProject" onchange="autoFillContractProject()"><option value="">Selecione...</option></select></div>
@@ -3346,8 +3346,11 @@ wrapper.appendChild(el);
 }
 function openContractModal() {
 const empSel = document.getElementById('contractEmployee');
-const sortedEmployees = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-empSel.innerHTML = '<option value="">Selecione...</option>' + sortedEmployees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+// Lista apenas funcionários PJ, mostrando o nome da empresa
+const pjEmployees = data.employees
+    .filter(e => e.contractType === 'PJ' && e.companyName)
+    .sort((a, b) => a.companyName.localeCompare(b.companyName, 'pt-BR'));
+empSel.innerHTML = '<option value="">Selecione...</option>' + pjEmployees.map(e => `<option value="${e.id}">${e.companyName}</option>`).join('');
     
 const projSel = document.getElementById('contractProject');
 const availableProjects = data.projects
@@ -3363,12 +3366,13 @@ const availableProjects = data.projects
 projSel.innerHTML = '<option value="">Selecione...</option>' + availableProjects.map(p => `<option value="${p.id}">${p.op} - ${p.client}</option>`).join('');
     
     // Preenche testemunhas com funcionários cadastrados
-    const w1Sel = document.getElementById('contractW1Name');
-    const w2Sel = document.getElementById('contractW2Name');
-    const witnessOptions = '<option value="">Selecione...</option>' + 
-                          data.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-    w1Sel.innerHTML = witnessOptions;
-    w2Sel.innerHTML = witnessOptions;
+const w1Sel = document.getElementById('contractW1Name');
+const w2Sel = document.getElementById('contractW2Name');
+const sortedWitnesses = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+const witnessOptions = '<option value="">Selecione...</option>' +
+sortedWitnesses.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+w1Sel.innerHTML = witnessOptions;
+w2Sel.innerHTML = witnessOptions;
     
     document.getElementById('contractEmployeeCpf').value = '';
     document.getElementById('contractW1Cpf').value = '';
@@ -3378,19 +3382,34 @@ projSel.innerHTML = '<option value="">Selecione...</option>' + availableProjects
     document.getElementById('contractModal').classList.add('active');
 }
 function autoFillContractEmployee() {
-    const empId = document.getElementById('contractEmployee').value;
+const empId = document.getElementById('contractEmployee').value;
+const otherGroup = document.getElementById('contractEmployeeOtherGroup');
+const otherInput = document.getElementById('contractEmployeeOther');
+
+if (empId === '__outro__') {
+    // Mostrar campo para digitar manualmente
+    otherGroup.style.display = 'block';
+    otherInput.value = '';
+    document.getElementById('contractEmployeeCpf').value = '';
+    document.getElementById('contractCompanyName').value = '';
+    document.getElementById('contractCompanyCnpj').value = '';
+    document.getElementById('contractCompanyAddress').value = '';
+} else if (empId) {
+    otherGroup.style.display = 'none';
     const emp = data.employees.find(e => e.id === empId);
     if (emp) {
         document.getElementById('contractEmployeeCpf').value = emp.cpf || '';
         document.getElementById('contractCompanyName').value = emp.companyName || '';
         document.getElementById('contractCompanyCnpj').value = emp.companyCnpj || '';
         document.getElementById('contractCompanyAddress').value = emp.companyAddress || '';
-    } else {
-        document.getElementById('contractEmployeeCpf').value = '';
-        document.getElementById('contractCompanyName').value = '';
-        document.getElementById('contractCompanyCnpj').value = '';
-        document.getElementById('contractCompanyAddress').value = '';
     }
+} else {
+    otherGroup.style.display = 'none';
+    document.getElementById('contractEmployeeCpf').value = '';
+    document.getElementById('contractCompanyName').value = '';
+    document.getElementById('contractCompanyCnpj').value = '';
+    document.getElementById('contractCompanyAddress').value = '';
+}
 }
 function autoFillContractProject() {
     const projId = document.getElementById('contractProject').value;
@@ -3450,14 +3469,32 @@ function autoFillWitnessCpfFromSelect(witnessNum) {
 function generateContractPDF() {
 const empId = document.getElementById('contractEmployee').value;
 const serviceDesc = document.getElementById('contractServiceDesc').value;
-const emp = data.employees.find(e => e.id === empId);
-if (!emp) { notify('Selecione um colaborador', 'error'); return; }
-const w1Name = document.getElementById('contractW1Name').value;
+const otherInput = document.getElementById('contractEmployeeOther');
+const isOther = empId === '__outro__';
+
+// Busca a empresa contratada
+let emp = null;
+let companyName = '';
+if (isOther) {
+    companyName = otherInput.value.trim();
+    if (!companyName) { notify('Digite o nome da empresa contratada', 'error'); return; }
+} else {
+    emp = data.employees.find(e => e.id === empId);
+    if (!emp) { notify('Selecione uma empresa', 'error'); return; }
+    companyName = emp.companyName || emp.name;
+}
+
+// Busca o nome real das testemunhas (pelo ID)
+const w1Id = document.getElementById('contractW1Name').value;
+const w1Emp = data.employees.find(e => e.id === w1Id);
+const w1Name = w1Emp ? w1Emp.name : w1Id;
 const w1Cpf = document.getElementById('contractW1Cpf').value;
-const w2Name = document.getElementById('contractW2Name').value;
+
+const w2Id = document.getElementById('contractW2Name').value;
+const w2Emp = data.employees.find(e => e.id === w2Id);
+const w2Name = w2Emp ? w2Emp.name : w2Id;
 const w2Cpf = document.getElementById('contractW2Cpf').value;
 if (!w1Name || !w1Cpf || !w2Name || !w2Cpf) { notify('Preencha os dados das testemunhas', 'error'); return; }
-const companyName = document.getElementById('contractCompanyName').value;
 const companyCnpj = document.getElementById('contractCompanyCnpj').value;
 const companyAddress = document.getElementById('contractCompanyAddress').value;
 const poNumber = document.getElementById('contractPoNumber').value;
@@ -3471,7 +3508,11 @@ const html = `
 <head>
 <title>Contrato de Prestação de Serviços</title>
 <style>
-body { font-family: 'Times New Roman', serif; font-size: 10pt; line-height: 1.5; padding: 30px; max-width: 800px; margin: 0 auto; }
+@page {
+    size: A4 portrait;
+    margin: 5mm;
+}
+body { font-family: 'Times New Roman', serif; font-size: 10pt; line-height: 1.5; padding: 0; max-width: 100%; margin: 0 auto; }
 h2 { text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 20px; }
 p { text-align: justify; margin-bottom: 15px; }
 .signatures { margin-top: 60px; display: flex; justify-content: space-between; }
