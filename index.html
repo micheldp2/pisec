@@ -130,6 +130,7 @@ tr:hover { background: #f8f9fa; }
 .badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; }
 .badge-done { background: #28a745; color: white; }
 .badge-partial { background: #f0ad4e; color: #002745; }
+.badge-inprogress { background: #0d6efd; color: white; }
 .badge-pending { background: #5bc0de; color: #002745; }
 .badge-no { background: #dc3545; color: white; }
 .badge-active { background: #28a745; color: white; }
@@ -938,10 +939,23 @@ renderAll();
 });
 
 function getTripEffectiveStatus(t){
-if(t.status==='Concluída'||t.status==='Cancelada'||t.status==='Necessária')return t.status;
-const todayStr=new Date().toISOString().split('T')[0];
-if(t.status==='Em aberto'||(t.end&&t.end<todayStr&&t.status!=='Em andamento'))return 'Em aberto';
-return t.status||'Agendada';
+    // Status finais não mudam automaticamente
+    if(t.status==='Concluída' || t.status==='Cancelada' || t.status==='Necessária') {
+        return t.status;
+    }
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Se a data de início já passou (ou é hoje) e o status é "Agendada" ou "Em aberto",
+    // muda automaticamente para "Em andamento"
+    if(t.start && t.start <= todayStr) {
+        if(t.status === 'Agendada' || t.status === 'Em aberto') {
+            return 'Em andamento';
+        }
+    }
+    
+    // Retorna o status atual ou "Agendada" como padrão
+    return t.status || 'Agendada';
 }
 function tripSortKey(t){
 const eff=getTripEffectiveStatus(t);
@@ -2116,7 +2130,18 @@ function renderUndefinedDateTrips() {
   const container = document.getElementById('undefinedDateTripsContainer');
   if (!container) return;
   
-  const undefinedTrips = data.trips.filter(t => t.dateUndefined && t.status !== 'Cancelada');
+  const undefinedTrips = data.trips
+    .filter(t => t.dateUndefined && t.status !== 'Cancelada')
+    .sort((a, b) => {
+        const pa = data.projects.find(p => p.id === a.projectId);
+        const pb = data.projects.find(p => p.id === b.projectId);
+        const opA = pa?.op || '';
+        const opB = pb?.op || '';
+        const numA = parseInt(opA.replace(/\D/g, '')) || 0;
+        const numB = parseInt(opB.replace(/\D/g, '')) || 0;
+        if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
+        return opA.localeCompare(opB, 'pt-BR', {numeric: true});
+    });
   
   if (undefinedTrips.length === 0) {
     container.innerHTML = '';
@@ -2224,7 +2249,7 @@ document.getElementById('tripStats').innerHTML=`<div class="stat-card"><div clas
 
 
 if(!trips.length){tbody.innerHTML='<tr><td colspan="9" class="empty-state"><div class="empty-state-icon">✈️</div>Nenhuma viagem</td></tr>';return;}
-tbody.innerHTML=trips.map(t=>{const proj=data.projects.find(p=>p.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}${e.isOtherSector?'<small style="opacity:0.7">('+e.sector+')</small>':''}</span>`).join(' ');const effStatus=getTripEffectiveStatus(t);const statusClass=effStatus==='Concluída'?'badge-done':effStatus==='Cancelada'?'badge-no':effStatus==='Em aberto'?'badge-warning':effStatus==='Em andamento'?'badge-partial':effStatus==='Necessária'?'badge-na':'badge-pending';const payBadge=(t.paymentAtrelado==='Sim')?'<span class="badge badge-done">Sim</span>':'<span class="badge badge-na">Não</span>';const actionsHtml=hasPerm('view_trips')?`<td><button class="btn btn-info btn-sm" onclick="openTripDetailModal('${t.id}')">Detalhes</button>${hasPerm('edit_trips')?`<button class="btn btn-danger btn-sm" onclick="deleteTrip('${t.id}')">Excluir</button>`:''}</td>`:'<td>-</td>';
+tbody.innerHTML=trips.map(t=>{const proj=data.projects.find(p=>p.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}${e.isOtherSector?'<small style="opacity:0.7">('+e.sector+')</small>':''}</span>`).join(' ');const effStatus=getTripEffectiveStatus(t);const statusClass=effStatus==='Concluída'?'badge-done':effStatus==='Cancelada'?'badge-no':effStatus==='Em aberto'?'badge-warning':effStatus==='Em andamento'?'badge-inprogress':effStatus==='Necessária'?'badge-na':'badge-pending';const payBadge=(t.paymentAtrelado==='Sim')?'<span class="badge badge-done">Sim</span>':'<span class="badge badge-na">Não</span>';const actionsHtml=hasPerm('view_trips')?`<td><button class="btn btn-info btn-sm" onclick="openTripDetailModal('${t.id}')">Detalhes</button>${hasPerm('edit_trips')?`<button class="btn btn-danger btn-sm" onclick="deleteTrip('${t.id}')">Excluir</button>`:''}</td>`:'<td>-</td>';
 const startDateDisplay = t.dateUndefined ? '<span class="badge badge-warning">Data pendente</span>' : t.start;
 const endDateDisplay = t.dateUndefined ? '' : t.end;
 return `<tr><td><strong>${proj?.op||'-'}</strong></td><td>${proj?.client||'-'}</td><td>${t.type}</td><td>${startDateDisplay}</td><td>${endDateDisplay}</td><td>${empsHtml||'-'}</td><td><span class="badge ${statusClass}">${effStatus}</span></td><td>${payBadge}</td>${actionsHtml}</tr>`;
@@ -2367,7 +2392,7 @@ if (t.stages) {
 
 document.getElementById('tripDetailBody').innerHTML=`
 <div class="form-grid">
-<div class="form-group"><label>Status</label><div><span class="badge ${effStatus==='Concluída'?'badge-done':effStatus==='Cancelada'?'badge-no':effStatus==='Em aberto'?'badge-warning':effStatus==='Em andamento'?'badge-partial':'badge-pending'}">${effStatus}</span></div></div>
+<div class="form-group"><label>Status</label><div><span class="badge ${effStatus==='Concluída'?'badge-done':effStatus==='Cancelada'?'badge-no':effStatus==='Em aberto'?'badge-warning':effStatus==='Em andamento'?'badge-inprogress':'badge-pending'}">${effStatus}</span></div></div>
 <div class="form-group"><label>Início</label><div>${t.start}</div></div>
 <div class="form-group"><label>Fim</label><div>${t.end}</div></div>
 <div class="form-group full"><label>Colaboradores</label><div>${empsHtml}</div></div>
@@ -3134,7 +3159,7 @@ if(past.length>0){html+=`<div class="report-section"><h3>Viagens Realizadas</h3>
 past.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const days=calcDays(t.start,t.end);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}</span>`).join(' ');const payBadge=(t.paymentAtrelado==='Sim')?'<span class="badge badge-done">Sim</span>':'<span class="badge badge-na">Não</span>';html+=`<tr><td><strong>${t.start}</strong><br><small>até ${t.end}</small></td><td><strong>${p?.op||'-'}</strong></td><td>${p?.client||'-'}</td><td>${t.type}</td><td>${empsHtml}</td><td><span class="badge badge-done">${days}d</span></td><td>${payBadge}</td><td>${t.cost ? 'R$ ' + t.cost : '-'}</td></tr>`;});
 html+=`</tbody></table></div>`;}
 if(future.length>0){html+=`<div class="report-section"><h3>Viagens Planejadas</h3><table><thead><tr><th>Período</th><th>OP</th><th>Cliente</th><th>Tipo</th><th>Colaboradores</th><th>Dias</th><th>Status</th></tr></thead><tbody>`;
-future.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const days=calcDays(t.start,t.end);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}</span>`).join(' ');const statusClass=t.status==='Em andamento'?'badge-partial':'badge-pending';html+=`<tr><td><strong>${t.start}</strong><br><small>até ${t.end}</small></td><td><strong>${p?.op||'-'}</strong></td><td>${p?.client||'-'}</td><td>${t.type}</td><td>${empsHtml}</td><td><span class="badge badge-pending">${days}d</span></td><td><span class="badge ${statusClass}">${t.status}</span></td></tr>`;});
+future.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const days=calcDays(t.start,t.end);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}</span>`).join(' ');const statusClass=t.status==='Em andamento'?'badge-inprogress':'badge-pending';html+=`<tr><td><strong>${t.start}</strong><br><small>até ${t.end}</small></td><td><strong>${p?.op||'-'}</strong></td><td>${p?.client||'-'}</td><td>${t.type}</td><td>${empsHtml}</td><td><span class="badge badge-pending">${days}d</span></td><td><span class="badge ${statusClass}">${t.status}</span></td></tr>`;});
 html+=`</tbody></table></div>`;}
 html+=`<div class="report-section"><h3>Alocação por Colaborador</h3><div class="employee-summary">`;
 Object.values(empStats).filter(e=>e.trips>0).forEach(e=>{html+=`<div class="employee-summary-card" style="border-left-color:${e.color}"><div class="name"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${e.color};margin-right:6px"></span>${e.name}</div><div class="stat"><span>Viagens:</span><span>${e.trips}</span></div><div class="stat"><span>Dias:</span><span>${e.days}</span></div><div class="stat"><span>Clientes:</span><span>${e.clients.size}</span></div></div>`;});
