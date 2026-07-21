@@ -435,7 +435,7 @@ Total Geral: R$ <span id="expensesTotalDisplay">0,00</span>
 <div class="form-grid">
 <div class="form-group"><label>Empresa Contratada</label><select id="contractEmployee" onchange="autoFillContractEmployee()"><option value="">Selecione...</option></select></div>
 <div class="form-group" id="contractEmployeeOtherGroup" style="display:none;"><label>Nome do Contratado (Outro)</label><input type="text" id="contractEmployeeOther" placeholder="Digite o nome completo"></div>
-<div class="form-group"><label>CPF do Colaborador</label><input type="text" id="contractEmployeeCpf" readonly></div>
+<div class="form-group"><label>CPF do Responsável</label><input type="text" id="contractEmployeeCpf" readonly></div>
 <div class="form-group"><label>OP (Projeto)</label><select id="contractProject" onchange="autoFillContractProject()"><option value="">Selecione...</option></select></div>
 <div class="form-group"><label>Nome da Empresa Contratada</label><input type="text" id="contractCompanyName"></div>
 <div class="form-group"><label>CNPJ Contratada</label><input type="text" id="contractCompanyCnpj"></div>
@@ -819,7 +819,8 @@ let currentUser = null;
 let conflictIgnored = false;
 let currentTripExpenses = [];
 const FIREBASE_DEFAULT_URL='https://pisec-42c4b-default-rtdb.firebaseio.com/.json';
-let serverConfig = {type:'firebase',url:FIREBASE_DEFAULT_URL,key:'',binId:''};
+const FIREBASE_DEFAULT_KEY='dwyVUlIMgUSH7xfWAEDyCcwbukMRoHuDPo7tEmNI';
+let serverConfig = {type:'firebase',url:FIREBASE_DEFAULT_URL,key:FIREBASE_DEFAULT_KEY,binId:''};
 function firebaseUrl(url,key){return key?`${url}${url.includes('?')?'&':'?'}auth=${encodeURIComponent(key)}`:url;}
 let calibSelection = {};
 let sortState = {};
@@ -1139,9 +1140,9 @@ data.users=data.users.filter(x=>x.id!==id);
 saveToServer();showUserList();notify('Usuário excluído');
 }
 function loadServerConfig(){
-let key='';
+let key=FIREBASE_DEFAULT_KEY; // Usa a chave padrão embutida
 const s=localStorage.getItem('pisek_server_config');
-if(s){try{const parsed=JSON.parse(s);if(parsed.type==='firebase')key=parsed.key||'';}catch(e){}}
+if(s){try{const parsed=JSON.parse(s);if(parsed.type==='firebase'&&parsed.key)key=parsed.key;}catch(e){}}
 serverConfig={type:'firebase',url:FIREBASE_DEFAULT_URL,key,binId:''};
 updateSyncStatus();
 return loadFromServer();
@@ -1211,13 +1212,23 @@ else{setSyncStatus('error','Vazio');}
 }catch(err){setSyncStatus('error','Erro');}
 }
 async function saveToServer(){
-if(!serverConfig.url){setSyncStatus('error','Sem URL');return;}
-setSyncStatus('syncing','Salvando...');
-try{
-let resp;
-if(serverConfig.type==='firebase'){
-resp=await fetch(firebaseUrl(serverConfig.url,serverConfig.key),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-}else{
+  if(!serverConfig.url){setSyncStatus('error','Sem URL');return;}
+  setSyncStatus('syncing','Salvando...');
+  try{
+    let resp;
+    // Adiciona token de validação
+    const dataWithValidation = {
+      ...data,
+      serverValidation: serverConfig.key || 'PSEC_VALID_2024'
+    };
+    
+    if(serverConfig.type==='firebase'){
+      resp=await fetch(firebaseUrl(serverConfig.url,serverConfig.key),{
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(dataWithValidation)
+      });
+    }else{
 const headers={'Content-Type':'application/json',...(serverConfig.type==='jsonbin'?{'X-Master-Key':serverConfig.key}:{})};
 if(serverConfig.type==='jsonbin')resp=await fetch(serverConfig.url,{method:'PUT',headers,body:JSON.stringify(data)});
 else resp=await fetch(serverConfig.url,{method:'POST',headers,body:JSON.stringify(data)});
@@ -3566,8 +3577,21 @@ async function init(){
     }
     
     // 1. Carrega configuração do servidor
-    const sc = localStorage.getItem('pisek_server_config');
-    if(sc){ try { serverConfig = JSON.parse(sc); } catch(e){} }
+// 1. Carrega configuração do servidor (usa chave padrão se não houver config salva)
+const sc = localStorage.getItem('pisek_server_config');
+if(sc){ 
+    try { 
+        const parsed = JSON.parse(sc);
+        serverConfig = parsed;
+        // Se não tiver chave na config salva, usa a padrão
+        if(!serverConfig.key) serverConfig.key = FIREBASE_DEFAULT_KEY;
+    } catch(e){
+        serverConfig = {type:'firebase',url:FIREBASE_DEFAULT_URL,key:FIREBASE_DEFAULT_KEY,binId:''};
+    }
+} else {
+    // Se não houver config salva, usa a padrão com chave embutida
+    serverConfig = {type:'firebase',url:FIREBASE_DEFAULT_URL,key:FIREBASE_DEFAULT_KEY,binId:''};
+}
     updateSyncStatus();
     
     // 2. Busca dados da nuvem (Substitui o loadData/seedData local)
