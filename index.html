@@ -403,7 +403,10 @@ tr:hover { background: #f8f9fa; }
 </label>
 <input type="text" id="tripVehicleInfo" placeholder="Veículo utilizado e placa">
 </div>
-<div class="form-group full"><label>Observações</label><textarea id="tripCompleteNotes" placeholder="Descreva observações sobre a viagem concluída"></textarea></div>
+<div class="form-group full" id="tripCompleteStagesGroup" style="display:none;">
+    <label style="margin-bottom:8px; font-weight:700; color:#002745;">Status dos Serviços Realizados</label>
+    <div id="tripCompleteStagesList" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px;"></div>
+</div>
 </div>
 </div>
 <div class="modal-footer"><button class="btn btn-light" onclick="closeModal('tripCompleteModal')">Cancelar</button><button class="btn btn-primary" onclick="confirmTripComplete()">Confirmar</button></div>
@@ -534,13 +537,26 @@ Total Geral: R$ <span id="expensesTotalDisplay">0,00</span>
 <div class="form-group"><label>Capacidade</label><input type="text" id="instCapacity"></div>
 <div class="form-group"><label>Qtd</label><input type="number" id="instQty" min="0" value="1"></div>
 <div class="form-group"><label>Qtd Mínima</label><input type="number" id="instMinQty" min="0" value="1"></div>
-<div class="form-group"><label>Situação</label><select id="instStatus"><option value="ok">OK</option><option value="intervention">Intervenção</option><option value="discarded">Descartado</option></select></div>
+<div class="form-group"><label>Situação</label><select id="instStatus"><option value="available">Disponível</option><option value="in-use">Em uso</option><option value="calibration">Em calibração</option><option value="intervention">Necessário intervenção</option><option value="discarded">Descartado</option></select></div>
 <div class="form-group"><label>Localização</label><input type="text" id="instLocation"></div>
 <div class="form-group"><label>Último Responsável</label><input type="text" id="instLastResp"></div>
-<div class="form-group"><label>Aquisição</label><input type="date" id="instAcqDate"></div>
-<div class="form-group"><label>Calibração</label><input type="date" id="instCalib"></div>
-<div class="form-group"><label>Frequência</label><select id="instCalibFreq"><option value="6">6 meses</option><option value="12">12 meses</option><option value="24">24 meses</option><option value="36">36 meses</option><option value="0">Sem calibração</option></select></div>
-<div class="form-group"><label>Próxima Calibração</label><input type="date" id="instNextCalib"></div>
+<div class="form-group"><label>Aquisição</label><input type="date" id="instAcqDate" onchange="recalculateNextCalib()"></div>
+<div class="form-group"><label>Calibração</label><input type="date" id="instCalib" onchange="recalculateNextCalib()"></div>
+<div class="form-group"><label>Frequência</label>
+    <select id="instCalibFreq" onchange="toggleCalibFreqOther(); recalculateNextCalib();">
+        <option value="6">6 meses</option>
+        <option value="12">12 meses</option>
+        <option value="24">24 meses</option>
+        <option value="36">36 meses</option>
+        <option value="0">Sem calibração</option>
+        <option value="outro">Outro (digitar)</option>
+    </select>
+</div>
+<div class="form-group" id="instCalibFreqOtherGroup" style="display:none">
+    <label>Meses (personalizado)</label>
+    <input type="number" id="instCalibFreqOther" min="1" max="120" placeholder="Ex: 18" oninput="recalculateNextCalib()">
+</div>
+<div class="form-group"><label>Próxima Calibração</label><input type="date" id="instNextCalib" readonly style="background:#e9ecef"></div>
 <div class="form-group full"><label>Observações</label><textarea id="instNotes"></textarea></div>
 </div>
 </div>
@@ -716,9 +732,7 @@ Total Geral: R$ <span id="expensesTotalDisplay">0,00</span>
 </div>
 </div>
 <div class="filters">
-<select id="filterInstStatus" onchange="renderInstruments()"><option value="">Todos</option><option value="available">Disponíveis</option><option value="in-use">Em uso</option><option value="ok">Situação: OK</option><option value="intervention">Intervenção</option><option value="discarded">Descartado</option></select>
-<select id="filterInstLocation" onchange="renderInstruments()"><option value="">Todas localizações</option></select>
-</div>
+<select id="filterInstStatus" onchange="renderInstruments()"><option value="">Todos</option><option value="available">Disponível</option><option value="in-use">Em uso</option><option value="calibration">Em calibração</option><option value="intervention">Nec. intervenção</option><option value="discarded">Descartado</option></select></div>
 <div class="table-container"><table><thead><tr>
 <th data-sort="instId">ID <span class="sort-icon"></span></th>
 <th data-sort="description">Descrição <span class="sort-icon"></span></th>
@@ -898,15 +912,37 @@ function isGuest(){return !!currentUser&&currentUser.username==='Visitante';}
 
 // Ordenação Persistente
 function getSortValue(item, key) {
-const map = {
-'op': 'op', 'client': 'client', 'machine': 'machine', 'location': 'location',
-'project': (t) => { const p = data.projects.find(p=>p.id===t.projectId); return p ? p.op : ''; },
-'type': 'type', 'start': 'start', 'end': 'end', 'status': 'status', 'payment': 'paymentAtrelado',
-'name': 'name', 'role': 'role',
-'instId': 'instId', 'description': 'description', 'manufacturer': 'manufacturer', 'model': 'model', 'qty': 'qty', 'nextCalib': 'nextCalib'
-};
-let val = typeof map[key] === 'function' ? map[key](item) : item[map[key]];
-return val === undefined ? '' : val;
+    // Para viagens, precisamos tratar campos especiais
+    if (item.projectId) { // É uma viagem
+        if (key === 'status') {
+            // Usa o status efetivo (que considera a data de início)
+            return getTripEffectiveStatus(item);
+        }
+        if (key === 'project' || key === 'op') {
+            const p = data.projects.find(p => p.id === item.projectId);
+            return p ? p.op : '';
+        }
+        if (key === 'client') {
+            const p = data.projects.find(p => p.id === item.projectId);
+            return p ? p.client : '';
+        }
+        if (key === 'machine') {
+            const p = data.projects.find(p => p.id === item.projectId);
+            return p ? p.machine : '';
+        }
+        if (key === 'location') {
+            const p = data.projects.find(p => p.id === item.projectId);
+            return p ? (p.location || p.city || '') : '';
+        }
+    }
+    
+    // Campos diretos
+    const directFields = ['type', 'start', 'end', 'paymentAtrelado', 'name', 'role', 'instId', 'description', 'manufacturer', 'model', 'qty', 'nextCalib'];
+    if (directFields.includes(key)) {
+        return item[key] === undefined ? '' : item[key];
+    }
+    
+    return '';
 }
 function applyPersistentSort(arr, tableContext) {
 const activeSort = Object.entries(sortState).find(([k,v]) => v !== 'none');
@@ -1607,8 +1643,11 @@ const bar=document.createElement('div');
 bar.className='trip-bar-merged';
 bar.style.left=left+'px';bar.style.width=width+'px';bar.style.top=top+'px';
 bar.style.background=seg.emp.color;
-bar.textContent=`${seg.emp.name.split(' ')[0]} - ${proj?.op||''} - ${proj?.client||''}`;
-bar.title=`${seg.trip.type}: ${proj?.client||''} (${seg.emp.name}) ${seg.trip.start} a ${seg.trip.end}`;
+const city = proj?.city || '';
+const machine = proj?.machine || '';
+const fullText = `${seg.emp.name.split(' ')[0]} - ${proj?.op||''} - ${proj?.client||''}${city ? ' - '+city : ''}${machine ? ' - '+machine : ''}`;
+bar.textContent = fullText;
+bar.title = fullText;
 bar.dataset.tripId=seg.trip.id;
 if(canEdit){
 const handleL=document.createElement('div');handleL.className='resize-handle left';
@@ -1955,24 +1994,103 @@ list.innerHTML = tempContacts.map((c, i) => `
 </div>
 `).join('');
 }
-function renderProjects(){
-if(!hasPerm('view_projects')){document.getElementById('projectsTable').innerHTML='<tr><td colspan="8" class="empty-state">Sem permissão</td></tr>';return;}
-const tbody=document.getElementById('projectsTable');
-const filterClient=document.getElementById('filterProjectClient')?.value||'';
-const filterStatus=document.getElementById('filterProjectStatus')?.value||'';
-let filteredProjects=data.projects.slice();
-if(filterClient) filteredProjects=filteredProjects.filter(p=>p.client===filterClient);
-if(filterStatus) filteredProjects=filteredProjects.filter(p=>{
-const allDone=STAGE_KEYS.every(k=>p[k]==='FEITO');
-const effStatus=p.status==='Concluído'?'Concluído':p.status==='Em garantia'?'Em garantia':allDone?'Concluído':'Em andamento';
-return effStatus===filterStatus;
-});
-if(!filteredProjects.length){tbody.innerHTML='<tr><td colspan="8" class="empty-state"><div class="empty-state-icon"></div>Nenhum projeto</td></tr>';renderPaginationControls('tab-projects', 0, 'projects', renderProjects);return;}
-let pageData = sortProjectsByOp(data.projects);
+function renderProjects() {
+    if (!hasPerm('view_projects')) {
+        document.getElementById('projectsTable').innerHTML = '<tr><td colspan="8" class="empty-state">Sem permissão</td></tr>';
+        return;
+    }
+    
+    const tbody = document.getElementById('projectsTable');
+    const filterClient = document.getElementById('filterProjectClient')?.value || '';
+    const filterStatus = document.getElementById('filterProjectStatus')?.value || '';
+    
+    // 1. Filtra os projetos
+    let filteredProjects = data.projects.slice();
+    if (filterClient) filteredProjects = filteredProjects.filter(p => p.client === filterClient);
+    if (filterStatus) {
+        filteredProjects = filteredProjects.filter(p => {
+            const allDone = STAGE_KEYS.every(k => p[k] === 'FEITO');
+            const effStatus = p.status === 'Concluído' ? 'Concluído' : p.status === 'Em garantia' ? 'Em garantia' : allDone ? 'Concluído' : 'Em andamento';
+            return effStatus === filterStatus;
+        });
+    }
+    
+    // 2. Se não houver projetos após o filtro, exibe mensagem e para
+    if (!filteredProjects.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-state-icon">📋</div>Nenhum projeto encontrado</td></tr>';
+        return;
+    }
 
+    let pageData = filteredProjects.slice();
+    
+    // 3. Verifica se há ordenação ativa pelo clique no cabeçalho
+    const activeSort = Object.entries(sortState).find(([k, v]) => v !== 'none');
+    
+    if (activeSort) {
+        const [key, direction] = activeSort;
+        
+        pageData.sort((a, b) => {
+            let valA = a[key] || '';
+            let valB = b[key] || '';
+            
+            // Lógica ESPECIAL para a coluna OP (numérica + alfabética)
+            if (key === 'op') {
+                const numA = parseInt((valA || '').replace(/\D/g, '')) || 0;
+                const numB = parseInt((valB || '').replace(/\D/g, '')) || 0;
+                if (numA !== numB && numA > 0 && numB > 0) {
+                    return direction === 'asc' ? numA - numB : numB - numA;
+                }
+                return direction === 'asc' 
+                    ? (valA || '').localeCompare(valB || '', 'pt-BR', {numeric: true}) 
+                    : (valB || '').localeCompare(valA || '', 'pt-BR', {numeric: true});
+            }
+            
+            // Lógica para datas (caso exista alguma coluna de data no futuro)
+            const da = parseDateValue(valA);
+            const db = parseDateValue(valB);
+            if (da && db) {
+                return direction === 'asc' ? da - db : db - da;
+            }
+            
+            // Lógica padrão alfabética/numérica inteligente para Cliente, Máquina, Local, etc.
+            return direction === 'asc' 
+                ? String(valA).localeCompare(String(valB), 'pt-BR', {numeric: true}) 
+                : String(valB).localeCompare(String(valA), 'pt-BR', {numeric: true});
+        });
+    } else {
+        // 4. Ordenação padrão por OP (menor para maior) quando nenhum cabeçalho é clicado
+        pageData = sortProjectsByOp(pageData);
+    }
 
-tbody.innerHTML=pageData.map(p=>{const tripCount=data.trips.filter(t=>t.projectId===p.id).length;const allDone=STAGE_KEYS.every(k=>p[k]==='FEITO');let statusBadge='';if(p.status==='Concluído')statusBadge='<span class="badge badge-done">Concluído</span>';else if(p.status==='Em garantia')statusBadge='<span class="badge badge-warranty">Em garantia</span>';else if(allDone)statusBadge='<span class="badge badge-done">Concluído</span>';else statusBadge='<span class="badge badge-pending">Em andamento</span>';const asmText=p.hasAsm?`${p.asmStart||'-'} → ${p.asmEnd||'-'}`:'N/A';const actionsHtml=`<td><button class="btn btn-info btn-sm" onclick="openProjectDetailModal('${p.id}')">Detalhes</button>${hasPerm('edit_projects')?`<button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Excluir</button>`:''}</td>`;return `<tr><td><strong>${p.op}</strong></td><td>${p.client}</td><td>${p.machine}</td><td>${p.location}</td><td title="${p.scope}">${(p.scope||'').substring(0,40)}${(p.scope||'').length>40?'...':''}</td><td>${asmText}</td><td>${statusBadge}<br><small style="color:#6c757d">${tripCount} viagem(s)</small></td>${actionsHtml}</tr>`;}).join('');
-
+    // 5. Renderiza a tabela
+    tbody.innerHTML = pageData.map(p => {
+        const tripCount = data.trips.filter(t => t.projectId === p.id).length;
+        const allDone = STAGE_KEYS.every(k => p[k] === 'FEITO');
+        
+        let statusBadge = '';
+        if (p.status === 'Concluído') statusBadge = '<span class="badge badge-done">Concluído</span>';
+        else if (p.status === 'Em garantia') statusBadge = '<span class="badge badge-warranty">Em garantia</span>';
+        else if (allDone) statusBadge = '<span class="badge badge-done">Concluído</span>';
+        else statusBadge = '<span class="badge badge-pending">Em andamento</span>';
+        
+        const asmText = p.hasAsm ? `${p.asmStart || '-'} → ${p.asmEnd || '-'}` : 'N/A';
+        
+        const actionsHtml = `<td>
+            <button class="btn btn-info btn-sm" onclick="openProjectDetailModal('${p.id}')">Detalhes</button>
+            ${hasPerm('edit_projects') ? `<button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Excluir</button>` : ''}
+        </td>`;
+        
+        return `<tr>
+            <td><strong>${p.op}</strong></td>
+            <td>${p.client}</td>
+            <td>${p.machine}</td>
+            <td>${p.location}</td>
+            <td title="${p.scope}">${(p.scope || '').substring(0, 40)}${(p.scope || '').length > 40 ? '...' : ''}</td>
+            <td>${asmText}</td>
+            <td>${statusBadge}<br><small style="color:#6c757d">${tripCount} viagem(s)</small></td>
+            ${actionsHtml}
+        </tr>`;
+    }).join('');
 }
 function toggleAsmDates(){const h=document.getElementById('projHasAsm').checked;document.getElementById('asmStartGroup').style.display=h?'flex':'none';document.getElementById('asmEndGroup').style.display=h?'flex':'none';}
 function toggleProjOpNA() {
@@ -2011,24 +2129,49 @@ html += `<tr><td>${c.name || '-'}</td><td>${c.role || '-'}</td><td>${c.email || 
 });
 html += `</tbody></table></div>`;
 }
-if(projTrips.length > 0) {
+
+
+
+
+
+
+// Sempre mostra o Resumo de Viagens
 let totalCost = 0;
-let tripsHtml = `<h3 class="section-title" style="margin-top:16px;font-size:15px">Resumo de Viagens</h3><div class="table-container"><table><thead><tr><th>Período</th><th>Tipo</th><th>Colaboradores</th><th>Status</th>${canSeeCost?'<th>Custo</th>':''}</tr></thead><tbody>`;
-projTrips.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{
-const costNum = t.cost ? parseFloat(t.cost.replace(/\./g,'').replace(',','.')) || 0 : 0;
-totalCost += costNum;
-const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);
-const empsHtml=emps.map(e=>`<span style="display:inline-block;padding:2px 6px;background:${e.color};color:white;border-radius:8px;font-size:10px;margin:1px">${e.name.split(' ')[0]}</span>`).join(' ');
-tripsHtml += `<tr><td>${t.start} a ${t.end}</td><td>${t.type}</td><td>${empsHtml}</td><td>${t.status}</td>${canSeeCost?`<td>${t.cost ? 'R$ '+t.cost : '-'}</td>`:''}</tr>`;
-});
-tripsHtml += `</tbody></table></div>`;
-if(canSeeCost) {
-tripsHtml += `<div style="margin-top:8px; text-align:right; font-weight:700; color:#002745; font-size:14px">Custo Total do Projeto: R$ ${totalCost.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>`;
+let tripsHtml = `<h3 class="section-title" style="margin-top:16px;font-size:15px; display:flex; justify-content:space-between; align-items:center;">
+Resumo de Viagens
+${hasPerm('edit_trips') ? `<button class="btn btn-primary btn-sm" onclick="closeModal('projectDetailModal'); openTripModalForProject('${p.id}')">+ Criar Viagem</button>` : ''}
+</h3>`;
+
+if (projTrips.length > 0) {
+    tripsHtml += `<div class="table-container"><table><thead><tr><th>Período</th><th>Tipo</th><th>Colaboradores</th><th>Status</th>${canSeeCost?'<th>Custo</th>':''}</tr></thead><tbody>`;
+    projTrips.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{
+        const costNum = t.cost ? parseFloat(t.cost.replace(/\./g,'').replace(',','.')) || 0 : 0;
+        totalCost += costNum;
+        const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);
+        const empsHtml=emps.map(e=>`<span style="display:inline-block;padding:2px 6px;background:${e.color};color:white;border-radius:8px;font-size:10px;margin:1px">${e.name.split(' ')[0]}</span>`).join(' ');
+        
+        // Trata viagem sem data definida
+        let periodDisplay = '';
+        if (t.dateUndefined) {
+            periodDisplay = '<span class="badge badge-warning">Data à definir</span>';
+        } else {
+            periodDisplay = `${t.start} a ${t.end}`;
+        }
+        
+        tripsHtml += `<tr><td>${periodDisplay}</td><td>${t.type}</td><td>${empsHtml}</td><td>${t.status}</td>${canSeeCost?`<td>${t.cost ? 'R$ '+t.cost : '-'}</td>`:''}</tr>`;
+    });
+    tripsHtml += `</tbody></table></div>`;
+    if(canSeeCost) {
+        tripsHtml += `<div style="margin-top:8px; text-align:right; font-weight:700; color:#002745; font-size:14px">Custo Total do Projeto: R$ ${totalCost.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>`;
+    }
+} else {
+    tripsHtml += `<div style="margin-top:8px; padding:16px; background:#f8f9fa; border-radius:6px; text-align:center; color:#6c757d; font-size:13px;">
+        <div style="font-size:32px; margin-bottom:8px;">✈️</div>
+        Nenhuma viagem registrada para este projeto ainda.
+    </div>`;
 }
 html += tripsHtml;
-} else {
-html += `<div style="margin-top:16px;color:#6c757d;font-size:13px">Nenhuma viagem registrada para este projeto.</div>`;
-}
+
 let historyHtml = '<div style="margin-top:16px; font-size:12px; color:#6c757d; border-top:1px solid #e9ecef; padding-top:12px;">';
 if(p.createdBy) historyHtml += `<div>Cadastro realizado por <strong>${emailToName(p.createdBy)}</strong> em ${new Date(p.createdAt).toLocaleString('pt-BR')}</div>`;
 if(p.updatedBy) historyHtml += `<div>Modificação realizada por <strong>${emailToName(p.updatedBy)}</strong> em ${new Date(p.updatedAt).toLocaleString('pt-BR')}</div>`;
@@ -2243,17 +2386,24 @@ if(filterProj)trips=trips.filter(t=>t.projectId===filterProj);
 if(filterEmp)trips=trips.filter(t=>(t.employeeIds||[]).includes(filterEmp));
 if(filterStatus){trips=trips.filter(t=>{const eff=getTripEffectiveStatus(t);return eff===filterStatus;});}
 
-trips = trips.slice().sort((a, b) => {
-    const pa = data.projects.find(p => p.id === a.projectId);
-    const pb = data.projects.find(p => p.id === b.projectId);
-    const opA = pa?.op || '';
-    const opB = pb?.op || '';
-    const numA = parseInt(opA.replace(/\D/g, '')) || 0;
-    const numB = parseInt(opB.replace(/\D/g, '')) || 0;
-    if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
-    return opA.localeCompare(opB, 'pt-BR', {numeric: true});
-});
-
+// Verifica se há ordenação ativa pelo clique no cabeçalho
+const hasActiveSort = Object.entries(sortState).some(([k,v]) => v !== 'none');
+if (hasActiveSort) {
+    // Usa a ordenação do clique do usuário
+    trips = applyPersistentSort(trips, 'trips');
+} else {
+    // Ordenação padrão por OP do projeto (menor para maior)
+    trips = trips.slice().sort((a, b) => {
+        const pa = data.projects.find(p => p.id === a.projectId);
+        const pb = data.projects.find(p => p.id === b.projectId);
+        const opA = pa?.op || '';
+        const opB = pb?.op || '';
+        const numA = parseInt(opA.replace(/\D/g, '')) || 0;
+        const numB = parseInt(opB.replace(/\D/g, '')) || 0;
+        if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
+        return opA.localeCompare(opB, 'pt-BR', {numeric: true});
+    });
+}
 const total=data.trips.length;const future=data.trips.filter(t=>t.end>=today||t.status==='Em andamento').length;const past=data.trips.filter(t=>t.end<today&&t.status!=='Em andamento').length;
 document.getElementById('tripStats').innerHTML=`<div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${total}</div></div><div class="stat-card"><div class="stat-label">Futuras</div><div class="stat-value" style="color:#002745">${future}</div></div><div class="stat-card"><div class="stat-label">Realizadas</div><div class="stat-value" style="color:#28a745">${past}</div></div><div class="stat-card"><div class="stat-label">Projetos</div><div class="stat-value" style="color:#6f42c1">${data.projects.length}</div></div>`;
 
@@ -2265,6 +2415,15 @@ const startDateDisplay = t.dateUndefined ? '<span class="badge badge-warning">Da
 const endDateDisplay = t.dateUndefined ? '' : t.end;
 return `<tr><td><strong>${proj?.op||'-'}</strong></td><td>${proj?.client||'-'}</td><td>${t.type}</td><td>${startDateDisplay}</td><td>${endDateDisplay}</td><td>${empsHtml||'-'}</td><td><span class="badge ${statusClass}">${effStatus}</span></td><td>${payBadge}</td>${actionsHtml}</tr>`;
 }).join('');
+}
+function openTripModalForProject(projectId) {
+    openTripModal();
+    // Pré-seleciona o projeto
+    setTimeout(() => {
+        const projSel = document.getElementById('tripProject');
+        if (projSel) projSel.value = projectId;
+        updateTripStages();
+    }, 100);
 }
 function openTripModal(id){if(!requirePermission('edit_trips','editar viagens'))return;editingId=id||null;document.getElementById('tripModalTitle').textContent=id?'Editar Viagem':'Nova Viagem';document.getElementById('tripConflictAlert').innerHTML='';conflictIgnored=false;
 
@@ -2406,6 +2565,7 @@ document.getElementById('tripDetailBody').innerHTML=`
 <div class="form-group"><label>Status</label><div><span class="badge ${effStatus==='Concluída'?'badge-done':effStatus==='Cancelada'?'badge-no':effStatus==='Em aberto'?'badge-warning':effStatus==='Em andamento'?'badge-inprogress':'badge-pending'}">${effStatus}</span></div></div>
 <div class="form-group"><label>Início</label><div>${t.start}</div></div>
 <div class="form-group"><label>Fim</label><div>${t.end}</div></div>
+<div class="form-group full"><label>Descrição do Projeto (Escopo)</label><div style="padding:8px; background:#f8f9fa; border-radius:4px; font-size:12px; color:#495057;">${proj?.scope || '<em style="color:#adb5bd">Sem descrição</em>'}</div></div>
 <div class="form-group full"><label>Colaboradores</label><div>${empsHtml}</div></div>
 <div class="form-group"><label>Pagamento Atrelado</label><div>${t.paymentAtrelado||'Não'}</div></div>
 <div class="form-group full"><label>Observações</label><div>${t.notes||'-'}</div></div>
@@ -2463,25 +2623,78 @@ Serviços a realizar: ${servicesList}
 Atenciosamente,`);
 window.open(`mailto:michel.paulino@brunnschweiler.com.br?subject=${subject}&body=${body}`, '_blank');
 }
+
+
+
 function openTripCompleteModal(id){
 if(!requirePermission('edit_trips','concluir viagem'))return;
 tripDetailCurrentId=id;
 const t=data.trips.find(x=>x.id===id);
-document.getElementById('tripCompleteStart').value=t?.start||new Date().toISOString().split('T')[0];
-document.getElementById('tripCompleteEnd').value=t?.end||t?.start||new Date().toISOString().split('T')[0]; // Preenche data de retorno
-document.getElementById('tripReportNumber').value = t?.reportNumber === 'N/A' ? '' : (t?.reportNumber || '');
-document.getElementById('tripReportNA').checked = t?.reportNumber === 'N/A';
-toggleTripReportNA();
-document.getElementById('tripVehicleInfo').value = t?.vehicleInfo === 'N/A' ? '' : (t?.vehicleInfo || '');
-document.getElementById('tripVehicleNA').checked = t?.vehicleInfo === 'N/A';
-toggleTripVehicleNA();
-document.getElementById('tripCompleteNotes').value='';
+
+// Proteção contra elementos nulos (evita travamento se o HTML estiver em cache)
+const startEl = document.getElementById('tripCompleteStart');
+const endEl = document.getElementById('tripCompleteEnd');
+const reportNumEl = document.getElementById('tripReportNumber');
+const reportNAEl = document.getElementById('tripReportNA');
+const vehicleInfoEl = document.getElementById('tripVehicleInfo');
+const vehicleNAEl = document.getElementById('tripVehicleNA');
+const notesEl = document.getElementById('tripCompleteNotes');
+const totalPreviewEl = document.getElementById('tripExpensesTotalPreview');
+const costEl = document.getElementById('tripCompleteCost');
+
+if(startEl) startEl.value = t?.start || new Date().toISOString().split('T')[0];
+if(endEl) endEl.value = t?.end || t?.start || new Date().toISOString().split('T')[0];
+if(reportNumEl) reportNumEl.value = t?.reportNumber === 'N/A' ? '' : (t?.reportNumber || '');
+if(reportNAEl) { 
+    reportNAEl.checked = t?.reportNumber === 'N/A'; 
+    if(typeof toggleTripReportNA === 'function') toggleTripReportNA(); 
+}
+if(vehicleInfoEl) vehicleInfoEl.value = t?.vehicleInfo === 'N/A' ? '' : (t?.vehicleInfo || '');
+if(vehicleNAEl) { 
+    vehicleNAEl.checked = t?.vehicleInfo === 'N/A'; 
+    if(typeof toggleTripVehicleNA === 'function') toggleTripVehicleNA(); 
+}
+if(notesEl) notesEl.value = '';
+
 currentTripExpenses = t?.expenses ? JSON.parse(JSON.stringify(t.expenses)) : [];
 const totalPreview = currentTripExpenses.length > 0 ?
 currentTripExpenses.reduce((s, e) => s + (e.currency === 'BRL' ? e.amount : (e.amount * (e.rate || 1))), 0).toFixed(2).replace('.', ',') : '0,00';
-document.getElementById('tripExpensesTotalPreview').textContent = totalPreview;
-document.getElementById('tripCompleteCost').value = totalPreview;
-document.getElementById('tripCompleteModal').classList.add('active');
+
+if(totalPreviewEl) totalPreviewEl.textContent = totalPreview;
+if(costEl) costEl.value = totalPreview;
+// --- CARREGAR ETAPAS PREVISTAS NA VIAGEM ---
+const stagesList = document.getElementById('tripCompleteStagesList');
+const stagesGroup = document.getElementById('tripCompleteStagesGroup');
+
+if (t && t.stages) {
+    // Filtra apenas as etapas que foram previstas (diferentes de "NA")
+    const plannedStages = STAGE_KEYS.filter(k => t.stages[k] && t.stages[k] !== 'NA');
+    
+    if (plannedStages.length > 0) {
+        stagesList.innerHTML = plannedStages.map(k => {
+            const label = STAGE_LABELS[k];
+            const currentVal = t.stages[k];
+            // Opções SEM "N/A"
+            return `<div style="padding:8px; background:#f8f9fa; border-radius:6px; border:1px solid #e9ecef;">
+                <label style="font-size:12px; font-weight:600; color:#002745; display:block; margin-bottom:4px;">${label}</label>
+                <select id="tripCompleteStage_${k}" style="width:100%; padding:4px; font-size:11px;">
+                    <option value="FEITO" ${currentVal==='FEITO'?'selected':''}>Feito</option>
+                    <option value="PARCIAL" ${currentVal==='PARCIAL'?'selected':''}>Parcial</option>
+                    <option value="NAO_FEITO" ${currentVal==='NAO_FEITO'?'selected':''}>Não feito</option>
+                    <option value="FUTURO" ${currentVal==='FUTURO'?'selected':''}>Futuro</option>
+                </select>
+            </div>`;
+        }).join('');
+        stagesGroup.style.display = 'block';
+    } else {
+        stagesGroup.style.display = 'none';
+    }
+} else {
+    stagesGroup.style.display = 'none';
+}
+
+const modal = document.getElementById('tripCompleteModal');
+if(modal) modal.classList.add('active');
 }
 function toggleTripReportNA() {
 const chk = document.getElementById('tripReportNA');
@@ -2542,6 +2755,19 @@ const expensesWithTotal = currentTripExpenses.map(exp => ({
 ...exp,
 totalBRL: (exp.currency === 'BRL' ? exp.amount : (exp.amount * (exp.rate || 1))).toFixed(2)
 }));
+
+const projForSave = data.projects.find(p => p.id === data.trips[idx].projectId);
+if (projForSave) {
+    const requiredStages = getRequiredStages(projForSave);
+    if (!data.trips[idx].stages) data.trips[idx].stages = {};
+    requiredStages.forEach(s => {
+        const sel = document.getElementById(`tripCompleteStage_${s.key}`);
+        if (sel) {
+            data.trips[idx].stages[s.key] = sel.value;
+        }
+    });
+}
+
 data.trips[idx].status='Concluída';
 data.trips[idx].completedStartDate=start;
 data.trips[idx].completedEndDate=end; // Salva data de retorno
@@ -2832,23 +3058,20 @@ function editDocument(id){openDocModal(id);}
 async function deleteDocument(id){if(!requirePermission('edit_documents','excluir documentos'))return;if(!confirm('Excluir?'))return;data.documents=data.documents.filter(d=>d.id!==id);await saveToServer();renderAll();notify('Excluído');}
 
 function renderInstruments(){
-    if(!hasPerm('view_instruments')){
-        document.getElementById('instrumentsTable').innerHTML='<tr><td colspan="10" class="empty-state">Sem permissão</td></tr>';
-        return;
-    }
-    const tbody=document.getElementById('instrumentsTable');
-    const filterStatus=document.getElementById('filterInstStatus').value;
-    const filterLoc=document.getElementById('filterInstLocation').value;
-    const today=new Date().toISOString().split('T')[0];
-    
-    let insts=data.instruments.slice();
+if(!hasPerm('view_instruments')){document.getElementById('instrumentsTable').innerHTML='<tr><td colspan="10" class="empty-state">Sem permissão</td></tr>';return;}
+const tbody=document.getElementById('instrumentsTable');
+
+// Proteção contra elementos nulos (evita travamento se o HTML estiver em cache)
+const filterStatusEl = document.getElementById('filterInstStatus');
+const filterLocEl = document.getElementById('filterInstLocation');
+const filterStatus = filterStatusEl ? filterStatusEl.value : '';
+const filterLoc = filterLocEl ? filterLocEl.value : '';
+
+const today=new Date().toISOString().split('T')[0];
+let insts=data.instruments.slice();
     
     // Aplica filtros
-    if(filterStatus==='available')insts=insts.filter(i=>!isInstrumentInUse(i.id));
-    else if(filterStatus==='in-use')insts=insts.filter(i=>isInstrumentInUse(i.id));
-    else if(filterStatus==='ok')insts=insts.filter(i=>i.status==='ok');
-    else if(filterStatus==='intervention')insts=insts.filter(i=>i.status==='intervention');
-    else if(filterStatus==='discarded')insts=insts.filter(i=>i.status==='discarded');
+if(filterStatus)insts=insts.filter(i=>i.status===filterStatus);
     if(filterLoc)insts=insts.filter(i=>i.location===filterLoc);
     
     // Verifica se há ordenação ativa pelo clique no cabeçalho
@@ -2869,11 +3092,13 @@ insts = insts.slice().sort((a, b) => {
         return;
     }
     
-    const statusLabels={
-        ok:'<span class="badge badge-done">OK</span>',
-        intervention:'<span class="badge badge-warning">Intervenção</span>',
-        discarded:'<span class="badge badge-expired">Descartado</span>'
-    };
+const statusLabels={
+    available:'<span class="badge badge-done">Disponível</span>',
+    'in-use':'<span class="badge badge-partial">Em uso</span>',
+    calibration:'<span class="badge badge-pending">Em calibração</span>',
+    intervention:'<span class="badge badge-warning">Nec. intervenção</span>',
+    discarded:'<span class="badge badge-expired">Descartado</span>'
+};
     
     tbody.innerHTML=insts.map(i=>{
         const inUse=isInstrumentInUse(i.id);
@@ -2883,14 +3108,111 @@ insts = insts.slice().sort((a, b) => {
             <button class="btn btn-info btn-sm" onclick="openInstrumentDetailModal('${i.id}')" style="margin-right:4px;">Detalhes</button>
             ${hasPerm('edit_instruments')?`<button class="btn btn-danger btn-sm" onclick="deleteInstrument('${i.id}')">Excluir</button>`:''}
         </td>`;
-        return `<tr><td><strong>${i.instId||'-'}</strong></td><td title="${i.description||''}">${(i.description||'').substring(0,30)}${(i.description||'').length>30?'...':''}</td><td>${i.manufacturer||'-'}</td><td>${i.model||'-'}</td><td>${i.qty||0}${inUse?'<small style="color:#f0ad4e">(uso)</small>':''}</td><td>${statusLabels[i.status]||'-'}</td><td>${i.location||'-'}</td><td>${i.nextCalib||'-'} ${calibStatus}</td>${actionsHtml}</tr>`;
+        return `<tr><td><strong>${i.instId||'-'}</strong></td><td title="${i.description||''}">${(i.description||'').substring(0,30)}${(i.description||'').length>30?'...':''}</td><td>${i.manufacturer||'-'}</td><td>${i.model||'-'}</td><td>${i.qty||0}${inUse?'<small style="color:#f0ad4e">(uso)</small>':''}</td><td>${statusLabels[i.status || 'available'] || '-'}</td><td>${i.location||'-'}</td><td>${i.nextCalib||'-'} ${calibStatus}</td>${actionsHtml}</tr>`;
     }).join('');
 }
 
 
 function isInstrumentInUse(instId){return data.checkouts.some(c=>c.instrumentIds.includes(instId)&&!c.returnDate);}
-function openInstrumentModal(id){if(!requirePermission('edit_instruments','cadastrar instrumentos'))return;editingId=id||null;document.getElementById('instrumentModalTitle').textContent=id?'Editar Instrumento':'Novo Instrumento';if(id){const i=data.instruments.find(x=>x.id===id);document.getElementById('instId').value=i.instId||'';document.getElementById('instDesc').value=i.description||'';document.getElementById('instManufacturer').value=i.manufacturer||'';document.getElementById('instModel').value=i.model||'';document.getElementById('instCapacity').value=i.capacity||'';document.getElementById('instQty').value=i.qty||1;document.getElementById('instMinQty').value=i.minQty||1;document.getElementById('instStatus').value=i.status||'ok';document.getElementById('instLocation').value=i.location||'';document.getElementById('instLastResp').value=i.lastResp||'';document.getElementById('instAcqDate').value=i.acqDate||'';document.getElementById('instCalib').value=i.calibDate||'';document.getElementById('instCalibFreq').value=i.calibFreq||12;document.getElementById('instNextCalib').value=i.nextCalib||'';document.getElementById('instNotes').value=i.notes||'';}else{['instId','instDesc','instManufacturer','instModel','instCapacity','instLocation','instLastResp','instAcqDate','instCalib','instNextCalib','instNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('instQty').value=1;document.getElementById('instMinQty').value=1;document.getElementById('instStatus').value='ok';document.getElementById('instCalibFreq').value=12;}document.getElementById('instrumentModal').classList.add('active');}
-async function saveInstrument(){if(!requirePermission('edit_instruments','salvar instrumentos'))return;const inst={id:editingId||Date.now().toString(),instId:document.getElementById('instId').value,description:document.getElementById('instDesc').value,manufacturer:document.getElementById('instManufacturer').value,model:document.getElementById('instModel').value,capacity:document.getElementById('instCapacity').value,qty:parseInt(document.getElementById('instQty').value)||0,minQty:parseInt(document.getElementById('instMinQty').value)||0,status:document.getElementById('instStatus').value,location:document.getElementById('instLocation').value,lastResp:document.getElementById('instLastResp').value,acqDate:document.getElementById('instAcqDate').value,calibDate:document.getElementById('instCalib').value,calibFreq:parseInt(document.getElementById('instCalibFreq').value)||12,nextCalib:document.getElementById('instNextCalib').value,notes:document.getElementById('instNotes').value};if(!inst.instId||!inst.description){notify('ID e descrição obrigatórios','error');return;}if(data.instruments.some(i=>i.instId.trim().toLowerCase()===inst.instId.trim().toLowerCase()&&i.id!==editingId)){notify('Já existe um instrumento com esse ID','error');return;}if(editingId){const idx=data.instruments.findIndex(i=>i.id===editingId);data.instruments[idx]=inst;}else{data.instruments.push(inst);}await saveToServer();closeModal('instrumentModal');renderAll();notify('Instrumento salvo');}
+function toggleCalibFreqOther() {
+    const sel = document.getElementById('instCalibFreq');
+    const group = document.getElementById('instCalibFreqOtherGroup');
+    const input = document.getElementById('instCalibFreqOther');
+    const nextCalibInput = document.getElementById('instNextCalib');
+    
+    if (sel.value === 'outro') {
+        group.style.display = 'flex';
+    } else {
+        group.style.display = 'none';
+    }
+    
+    // Recalcula próxima calibração automaticamente
+    recalculateNextCalib();
+}
+
+function recalculateNextCalib() {
+    const acqDate = document.getElementById('instAcqDate').value;
+    const calibDate = document.getElementById('instCalib').value;
+    const freqSel = document.getElementById('instCalibFreq').value;
+    const freqOther = document.getElementById('instCalibFreqOther').value;
+    const nextCalibInput = document.getElementById('instNextCalib');
+    
+    // Data base = data de calibração (se tiver) ou data de aquisição
+    const baseDate = calibDate || acqDate;
+    
+    if (!baseDate || freqSel === '0') {
+        nextCalibInput.value = '';
+        return;
+    }
+    
+    let months = parseInt(freqSel);
+    if (freqSel === 'outro') {
+        months = parseInt(freqOther) || 0;
+    }
+    
+    if (months > 0) {
+        const d = new Date(baseDate + 'T00:00:00');
+        d.setMonth(d.getMonth() + months);
+        nextCalibInput.value = d.toISOString().split('T')[0];
+    } else {
+        nextCalibInput.value = '';
+    }
+}
+function openInstrumentModal(id){if(!requirePermission('edit_instruments','cadastrar instrumentos'))return;editingId=id||null;document.getElementById('instrumentModalTitle').textContent=id?'Editar Instrumento':'Novo Instrumento';if(id){const i=data.instruments.find(x=>x.id===id);document.getElementById('instId').value=i.instId||'';document.getElementById('instDesc').value=i.description||'';document.getElementById('instManufacturer').value=i.manufacturer||'';document.getElementById('instModel').value=i.model||'';document.getElementById('instCapacity').value=i.capacity||'';document.getElementById('instQty').value=i.qty||1;document.getElementById('instMinQty').value=i.minQty||1;document.getElementById('instStatus').value=i.status||'available';document.getElementById('instLocation').value=i.location||'';document.getElementById('instLastResp').value=i.lastResp||'';document.getElementById('instAcqDate').value=i.acqDate||'';document.getElementById('instCalib').value=i.calibDate||'';document.getElementById('instCalibFreq').value=i.calibFreq||12;// Trata frequência customizada
+if (i.calibFreqOther) {
+    document.getElementById('instCalibFreq').value = 'outro';
+    document.getElementById('instCalibFreqOther').value = i.calibFreqOther;
+    toggleCalibFreqOther();
+} else {
+    toggleCalibFreqOther();
+}
+recalculateNextCalib();document.getElementById('instNextCalib').value=i.nextCalib||'';document.getElementById('instNotes').value=i.notes||'';}else{['instId','instDesc','instManufacturer','instModel','instCapacity','instLocation','instLastResp','instAcqDate','instCalib','instNextCalib','instNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('instQty').value=1;document.getElementById('instMinQty').value=1;document.getElementById('instStatus').value='available';document.getElementById('instCalibFreq').value=12;toggleCalibFreqOther();}document.getElementById('instrumentModal').classList.add('active');}
+async function saveInstrument(){if(!requirePermission('edit_instruments','salvar instrumentos'))return;
+
+
+const freqSel = document.getElementById('instCalibFreq').value;
+const freqOther = document.getElementById('instCalibFreqOther').value;
+const acqDate = document.getElementById('instAcqDate').value;
+const calibDate = document.getElementById('instCalib').value;
+const baseDate = calibDate || acqDate;
+
+let calibFreqValue = parseInt(freqSel);
+let calibFreqOtherValue = null;
+if (freqSel === 'outro') {
+    calibFreqOtherValue = parseInt(freqOther) || 0;
+    calibFreqValue = calibFreqOtherValue;
+}
+
+// Calcula próxima calibração automaticamente
+let nextCalibValue = '';
+if (baseDate && calibFreqValue > 0) {
+    const d = new Date(baseDate + 'T00:00:00');
+    d.setMonth(d.getMonth() + calibFreqValue);
+    nextCalibValue = d.toISOString().split('T')[0];
+}
+
+const inst={
+    id:editingId||Date.now().toString(),
+    instId:document.getElementById('instId').value,
+    description:document.getElementById('instDesc').value,
+    manufacturer:document.getElementById('instManufacturer').value,
+    model:document.getElementById('instModel').value,
+    capacity:document.getElementById('instCapacity').value,
+    qty:parseInt(document.getElementById('instQty').value)||0,
+    minQty:parseInt(document.getElementById('instMinQty').value)||0,
+    status:document.getElementById('instStatus').value,
+    location:document.getElementById('instLocation').value,
+    lastResp:document.getElementById('instLastResp').value,
+    acqDate:acqDate,
+    calibDate:calibDate,
+    calibFreq:calibFreqValue,
+    calibFreqOther:calibFreqOtherValue,
+    nextCalib:nextCalibValue,
+    notes:document.getElementById('instNotes').value
+};
+
+
+;if(!inst.instId||!inst.description){notify('ID e descrição obrigatórios','error');return;}if(data.instruments.some(i=>i.instId.trim().toLowerCase()===inst.instId.trim().toLowerCase()&&i.id!==editingId)){notify('Já existe um instrumento com esse ID','error');return;}if(editingId){const idx=data.instruments.findIndex(i=>i.id===editingId);data.instruments[idx]=inst;}else{data.instruments.push(inst);}await saveToServer();closeModal('instrumentModal');renderAll();notify('Instrumento salvo');}
 function editInstrument(id){openInstrumentModal(id);}
 async function deleteInstrument(id){if(!requirePermission('edit_instruments','excluir instrumentos'))return;if(isInstrumentInUse(id)){notify('Em uso','error');return;}if(!confirm('Excluir?'))return;data.instruments=data.instruments.filter(i=>i.id!==id);await saveToServer();renderAll();notify('Excluído');}
 function printInstrumentNote(instId) {
@@ -2950,20 +3272,45 @@ document.getElementById('userModalFooter').innerHTML=`<button class="btn btn-lig
 modal.classList.add('active');
 }
 const CALIB_EMAIL_CC=['michel.paulino@brunnschweiler.com.br','danilo.queiroz@brunnschweiler.com.br','fernando.santos@brunnschweiler.com.br'];
-function sendCalibRequest(){
-const selected=[...document.querySelectorAll('.calib-req-check:checked')].map(cb=>cb.value);
-if(selected.length===0){notify('Selecione pelo menos um instrumento','error');return;}
-const instList=selected.map(id=>{const i=data.instruments.find(x=>x.id===id);return `  - ${i?.instId||''}: ${i?.description||''} (${i?.manufacturer||''} ${i?.model||''}) - Calibração: ${i?.nextCalib||'N/A'}`;}).join('\n');
-const subject=encodeURIComponent('Solicitação de Calibração de Instrumentos');
-const body=encodeURIComponent(`Solicito a calibração dos seguintes instrumentos:
+
+
+
+
+
+async function sendCalibRequest(){
+    const selected=[...document.querySelectorAll('.calib-req-check:checked')].map(cb=>cb.value);
+    if(selected.length===0){notify('Selecione pelo menos um instrumento','error');return;}
+    
+    // 1. Atualiza o status dos instrumentos selecionados para "Em calibração"
+    selected.forEach(id => {
+        const idx = data.instruments.findIndex(i => i.id === id);
+        if (idx !== -1) {
+            data.instruments[idx].status = 'calibration';
+        }
+    });
+    
+    // 2. Gera o e-mail exatamente como você tinha (funcional)
+    const instList=selected.map(id=>{
+        const i=data.instruments.find(x=>x.id===id);
+        return `  - ${i?.instId||''}: ${i?.description||''} (${i?.manufacturer||''} ${i?.model||''}) - Calibração: ${i?.nextCalib||'N/A'}`;
+    }).join('\n');
+    
+    const subject=encodeURIComponent('Solicitação de Calibração de Instrumentos');
+    const body=encodeURIComponent(`Solicito a calibração dos seguintes instrumentos:
 ${instList}
 Favor providenciar o agendamento.
 Atenciosamente,`);
-const cc=encodeURIComponent(CALIB_EMAIL_CC.join(','));
-window.open(`mailto:michel.paulino@brunnschweiler.com.br?cc=${cc}&subject=${subject}&body=${body}`,'_blank');
-closeModal('userModal');
-notify('Rascunho de e-mail aberto no seu cliente padrão','success');
+    const cc=encodeURIComponent(CALIB_EMAIL_CC.join(','));
+    window.open(`mailto:michel.paulino@brunnschweiler.com.br?cc=${cc}&subject=${subject}&body=${body}`,'_blank');
+    
+    // 3. Salva a alteração de status no banco de dados
+    await saveToServer();
+    
+    closeModal('userModal');
+    notify('Rascunho de e-mail aberto e status atualizado para "Em calibração"','success');
 }
+
+
 function renderCheckouts(){
 if(!hasPerm('view_instruments')){document.getElementById('checkoutsTable').innerHTML='<tr><td colspan="7" class="empty-state">Sem permissão</td></tr>';return;}
 const tbody=document.getElementById('checkoutsTable');
@@ -3036,6 +3383,7 @@ document.getElementById('checkoutNotes').value='';
 document.getElementById('checkoutModal').classList.add('active');
 }
 function toggleCheckoutQty(instId){const cb=document.querySelector(`.checkout-check[value="${instId}"]`);const qtyInput=document.getElementById('checkoutQty_'+instId);if(qtyInput)qtyInput.disabled=!cb.checked;}
+
 async function confirmCheckout(){
 if(!requirePermission('checkout','confirmar retirada'))return;
 const instrumentIds=[...document.querySelectorAll('.checkout-check:checked')].map(c=>c.value);
@@ -3054,6 +3402,7 @@ const proj=data.projects.find(p=>p.id===projSelValue);
 project=proj?`${proj.op} - ${proj.client}`:'';
 if(proj && proj.location) projectLocation = proj.location;
 }
+
 const checkoutDate=document.getElementById('checkoutDate').value;
 const notes=document.getElementById('checkoutNotes').value;
 const emp=data.employees.find(e=>e.id===employeeId);
@@ -3077,6 +3426,7 @@ const idx=data.instruments.findIndex(i=>i.id===id);
 if(idx!==-1){
 data.instruments[idx].lastResp=emp?.name||'';
 data.instruments[idx].location = projectLocation;
+data.instruments[idx].status = 'in-use';
 }
 });
 await saveToServer();closeModal('checkoutModal');renderAll();
@@ -3105,12 +3455,26 @@ data.checkouts[idx].instrumentIds.forEach(instId => {
 const iIdx = data.instruments.findIndex(i => i.id === instId);
 if(iIdx !== -1) {
 data.instruments[iIdx].location = 'Brunnschweiler';
+data.instruments[iIdx].status = 'available';
 }
 });
 await saveToServer();closeModal('returnModal');renderAll();notify('Devolvida');
 }
 async function deleteCheckout(id){if(!requirePermission('checkout','excluir retiradas'))return;if(!confirm('Excluir?'))return;data.checkouts=data.checkouts.filter(c=>c.id!==id);await saveToServer();renderAll();notify('Excluída');}
 function getReportPeriod(){const p=document.getElementById('reportPeriod').value;const fromEl=document.getElementById('reportFrom');const toEl=document.getElementById('reportTo');if(p==='custom'){fromEl.style.display='inline-block';toEl.style.display='inline-block';return{from:fromEl.value,to:toEl.value};}fromEl.style.display='none';toEl.style.display='none';const today=new Date();const y=today.getFullYear();const m=today.getMonth();if(p==='month')return{from:`${y}-${String(m+1).padStart(2,'0')}-01`,to:`${y}-${String(m+1).padStart(2,'0')}-${String(new Date(y,m+1,0).getDate()).padStart(2,'0')}`};if(p==='quarter'){const qM=Math.floor(m/3)*3;const qE=new Date(y,qM+3,0);return{from:`${y}-${String(qM+1).padStart(2,'0')}-01`,to:`${y}-${String(qM+3).padStart(2,'0')}-${String(qE.getDate()).padStart(2,'0')}`};}if(p==='year')return{from:`${y}-01-01`,to:`${y}-12-31`};return{from:'2020-01-01',to:'2099-12-31'};}
+function calcDaysInPeriod(tripStart, tripEnd, periodFrom, periodTo) {
+    // Se não há período definido, usa os dias totais da viagem
+    if (!periodFrom && !periodTo) return calcDays(tripStart, tripEnd);
+    
+    // Encontra a interseção entre o período da viagem e o período filtrado
+    const effectiveStart = (periodFrom && tripStart < periodFrom) ? periodFrom : tripStart;
+    const effectiveEnd = (periodTo && tripEnd > periodTo) ? periodTo : tripEnd;
+    
+    // Se não há interseção, retorna 0
+    if (effectiveStart > effectiveEnd) return 0;
+    
+    return calcDays(effectiveStart, effectiveEnd);
+}
 function calcDays(s,e){if(!s||!e)return 0;const a=new Date(s+'T00:00:00');const b=new Date(e+'T00:00:00');return Math.max(1,Math.ceil((b-a)/(1000*60*60*24))+1);}
 function renderReport(){
 if(!hasPerm('view_reports')){document.getElementById('reportContent').innerHTML='<div class="empty-state">Sem permissão</div>';return;}
@@ -3122,11 +3486,19 @@ else if(type==='employees')renderEmployeesReport();
 else if(type==='clients')renderClientsReport();
 }
 function filterTripsByService(trips,serviceType){
-if(!serviceType)return trips;
-return trips.filter(t=>{
-if(!t.stages)return false;
-return t.stages[serviceType]==='FEITO';
-});
+    if(!serviceType) return trips;
+    return trips.filter(t => {
+        // Verifica nas etapas da VIAGEM primeiro
+        if (t.stages && t.stages[serviceType] && t.stages[serviceType] !== 'NA') {
+            return true;
+        }
+        // Se a viagem não tem etapas, verifica no PROJETO
+        const proj = data.projects.find(p => p.id === t.projectId);
+        if (proj && proj[serviceType] && proj[serviceType] !== 'NA') {
+            return true;
+        }
+        return false;
+    });
 }
 function renderTripsReport(){
 const period=getReportPeriod();
@@ -3144,9 +3516,9 @@ const past=trips.filter(t=>t.end<today&&t.status!=='Cancelada');
 const future=trips.filter(t=>t.end>=today&&t.status!=='Cancelada');
 const cancelled=trips.filter(t=>t.status==='Cancelada');
 const empStats={};data.employees.filter(e=>!e.isOtherSector).forEach(e=>{empStats[e.id]={name:e.name,color:e.color,trips:0,days:0,clients:new Set()};});
-trips.forEach(t=>{const days=calcDays(t.start,t.end);(t.employeeIds||[]).filter(eid=>!data.employees.find(e=>e.id===eid)?.isOtherSector).forEach(eid=>{if(empStats[eid]){empStats[eid].trips++;empStats[eid].days+=days;const p=data.projects.find(x=>x.id===t.projectId);if(p)empStats[eid].clients.add(p.client);}});});
-const clientStats={};trips.forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);if(!p)return;if(!clientStats[p.client])clientStats[p.client]={trips:0,days:0};clientStats[p.client].trips++;clientStats[p.client].days+=calcDays(t.start,t.end);});
-const totalDays=trips.reduce((s,t)=>s+calcDays(t.start,t.end),0);
+trips.forEach(t=>{const days=calcDaysInPeriod(t.start,t.end,period.from,period.to);(t.employeeIds||[]).filter(eid=>!data.employees.find(e=>e.id===eid)?.isOtherSector).forEach(eid=>{if(empStats[eid]){empStats[eid].trips++;empStats[eid].days+=days;const p=data.projects.find(x=>x.id===t.projectId);if(p)empStats[eid].clients.add(p.client);}});});
+const clientStats={};trips.forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);if(!p)return;if(!clientStats[p.client])clientStats[p.client]={trips:0,days:0};clientStats[p.client].trips++;clientStats[p.client].days+=calcDaysInPeriod(t.start,t.end,period.from,period.to);});
+const totalDays=trips.reduce((s,t)=>s+calcDaysInPeriod(t.start,t.end,period.from,period.to),0);
 const totalEmpDays=Object.values(empStats).reduce((s,e)=>s+e.days,0);
 let totalCost = 0;
 totalCost = past.reduce((s, t) => {
@@ -3167,17 +3539,17 @@ let html=`<div class="report-section"><h3>Resumo${serviceLabel} - ${periodLabel}
 html+=`<div class="chart-row"><div class="report-section"><h3>Status das Viagens</h3><div class="chart-container"><canvas id="chartTripStatus"></canvas></div></div>
 <div class="report-section"><h3>Viagens por Mês</h3><div class="chart-container"><canvas id="chartTripMonth"></canvas></div></div></div>`;
 if(past.length>0){html+=`<div class="report-section"><h3>Viagens Realizadas</h3><table><thead><tr><th>Período</th><th>OP</th><th>Cliente</th><th>Tipo</th><th>Colaboradores</th><th>Dias</th><th>Pag. Atrelado</th><th>Custo</th></tr></thead><tbody>`;
-past.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const days=calcDays(t.start,t.end);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}</span>`).join(' ');const payBadge=(t.paymentAtrelado==='Sim')?'<span class="badge badge-done">Sim</span>':'<span class="badge badge-na">Não</span>';html+=`<tr><td><strong>${t.start}</strong><br><small>até ${t.end}</small></td><td><strong>${p?.op||'-'}</strong></td><td>${p?.client||'-'}</td><td>${t.type}</td><td>${empsHtml}</td><td><span class="badge badge-done">${days}d</span></td><td>${payBadge}</td><td>${t.cost ? 'R$ ' + t.cost : '-'}</td></tr>`;});
+past.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const days=calcDaysInPeriod(t.start,t.end,period.from,period.to);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}</span>`).join(' ');const payBadge=(t.paymentAtrelado==='Sim')?'<span class="badge badge-done">Sim</span>':'<span class="badge badge-na">Não</span>';html+=`<tr><td><strong>${t.start}</strong><br><small>até ${t.end}</small></td><td><strong>${p?.op||'-'}</strong></td><td>${p?.client||'-'}</td><td>${t.type}</td><td>${empsHtml}</td><td><span class="badge badge-done">${days}d</span></td><td>${payBadge}</td><td>${t.cost ? 'R$ ' + t.cost : '-'}</td></tr>`;});
 html+=`</tbody></table></div>`;}
 if(future.length>0){html+=`<div class="report-section"><h3>Viagens Planejadas</h3><table><thead><tr><th>Período</th><th>OP</th><th>Cliente</th><th>Tipo</th><th>Colaboradores</th><th>Dias</th><th>Status</th></tr></thead><tbody>`;
-future.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const days=calcDays(t.start,t.end);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}</span>`).join(' ');const statusClass=t.status==='Em andamento'?'badge-inprogress':'badge-pending';html+=`<tr><td><strong>${t.start}</strong><br><small>até ${t.end}</small></td><td><strong>${p?.op||'-'}</strong></td><td>${p?.client||'-'}</td><td>${t.type}</td><td>${empsHtml}</td><td><span class="badge badge-pending">${days}d</span></td><td><span class="badge ${statusClass}">${t.status}</span></td></tr>`;});
+future.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{const p=data.projects.find(x=>x.id===t.projectId);const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);const days=calcDaysInPeriod(t.start,t.end,period.from,period.to);const empsHtml=emps.map(e=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:${e.color};color:white;border-radius:10px;font-size:11px;margin:2px">${e.name.split(' ')[0]}</span>`).join(' ');const statusClass=t.status==='Em andamento'?'badge-inprogress':'badge-pending';html+=`<tr><td><strong>${t.start}</strong><br><small>até ${t.end}</small></td><td><strong>${p?.op||'-'}</strong></td><td>${p?.client||'-'}</td><td>${t.type}</td><td>${empsHtml}</td><td><span class="badge badge-pending">${days}d</span></td><td><span class="badge ${statusClass}">${t.status}</span></td></tr>`;});
 html+=`</tbody></table></div>`;}
 html+=`<div class="report-section"><h3>Alocação por Colaborador</h3><div class="employee-summary">`;
 Object.values(empStats).filter(e=>e.trips>0).forEach(e=>{html+=`<div class="employee-summary-card" style="border-left-color:${e.color}"><div class="name"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${e.color};margin-right:6px"></span>${e.name}</div><div class="stat"><span>Viagens:</span><span>${e.trips}</span></div><div class="stat"><span>Dias:</span><span>${e.days}</span></div><div class="stat"><span>Clientes:</span><span>${e.clients.size}</span></div></div>`;});
 if(Object.values(empStats).filter(e=>e.trips>0).length===0)html+='<div style="color:#6c757d;padding:20px;text-align:center">Nenhuma viagem</div>';
 html+=`</div></div>`;
 if(Object.keys(clientStats).length>0){html+=`<div class="report-section"><h3>Por Cliente</h3><table><thead><tr><th>Cliente</th><th>Viagens</th><th>Dias</th><th>Dias-Homem</th></tr></thead><tbody>`;
-Object.entries(clientStats).sort((a,b)=>b[1].days-a[1].days).forEach(([c,s])=>{const ct=trips.filter(t=>{const p=data.projects.find(x=>x.id===t.projectId);return p&&p.client===c;});const ed=ct.reduce((s,t)=>s+calcDays(t.start,t.end)*(t.employeeIds?.length||1),0);html+=`<tr><td><strong>${c}</strong></td><td>${s.trips}</td><td>${s.days}</td><td>${ed}</td></tr>`;});
+Object.entries(clientStats).sort((a,b)=>b[1].days-a[1].days).forEach(([c,s])=>{const ct=trips.filter(t=>{const p=data.projects.find(x=>x.id===t.projectId);return p&&p.client===c;});const ed=ct.reduce((s,t)=>s+calcDaysInPeriod(t.start,t.end,period.from,period.to)*(t.employeeIds?.length||1),0);html+=`<tr><td><strong>${c}</strong></td><td>${s.trips}</td><td>${s.days}</td><td>${ed}</td></tr>`;});
 html+=`</tbody></table></div>`;}
 document.getElementById('reportContent').innerHTML=html;
 setTimeout(()=>{
@@ -3223,7 +3595,7 @@ if(ctx2){const calibByMonth={};[...expired,...expiring].forEach(i=>{if(!i.nextCa
 function renderEmployeesReport(){
 const today=new Date().toISOString().split('T')[0];
 const empStats={};data.employees.filter(e=>!e.isOtherSector).forEach(e=>{empStats[e.id]={name:e.name,color:e.color,trips:0,days:0,clients:new Set(),docs:0,docsExpired:0,absences:(e.absences||[]).length};});
-data.trips.forEach(t=>{const days=calcDays(t.start,t.end);(t.employeeIds||[]).filter(eid=>!data.employees.find(e=>e.id===eid)?.isOtherSector).forEach(eid=>{if(empStats[eid]){empStats[eid].trips++;empStats[eid].days+=days;const p=data.projects.find(x=>x.id===t.projectId);if(p)empStats[eid].clients.add(p.client);}});});
+data.trips.forEach(t=>{const days=calcDaysInPeriod(t.start,t.end,period.from,period.to);(t.employeeIds||[]).filter(eid=>!data.employees.find(e=>e.id===eid)?.isOtherSector).forEach(eid=>{if(empStats[eid]){empStats[eid].trips++;empStats[eid].days+=days;const p=data.projects.find(x=>x.id===t.projectId);if(p)empStats[eid].clients.add(p.client);}});});
 data.documents.forEach(d=>{if(empStats[d.employeeId]){empStats[d.employeeId].docs++;if(d.expiry&&d.expiry<today)empStats[d.employeeId].docsExpired++;}});
 let html=`<div class="report-section"><h3>Relatório de Colaboradores</h3><div class="report-summary-grid">
 <div class="report-summary-card"><div class="label">Total Colaboradores</div><div class="value">${data.employees.filter(e=>!e.isOtherSector).length}</div></div>
