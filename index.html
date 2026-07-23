@@ -801,7 +801,7 @@ const EMPLOYEE_COLORS = ['#002745','#28a745','#6f42c1','#17a2b8','#20c997','#e83
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-const STAGE_OPTIONS = [{value:'NA',label:'N/A'},{value:'NECESSARIO',label:'Necessário'},{value:'FEITO',label:'Feito'},{value:'NAO_FEITO',label:'Não feito'},{value:'FUTURO',label:'Futuro'},{value:'PARCIAL',label:'Parcial'}];
+const STAGE_OPTIONS = [{value:'NA',label:'N/A'},{value:'NECESSARIO',label:'Necessário'},{value:'FEITO',label:'Realizado'},{value:'NAO_FEITO',label:'Não realizado'},{value:'FUTURO',label:'Futuro'},{value:'PARCIAL',label:'Parcial'}];
 const STAGE_KEYS = ['stVib','stBal','stCom','stStart','stPerf','stTrain','stAud','stGarantia','stSupervisao'];
 const STAGE_LABELS = {stVib:'Vibração',stBal:'Balanceamento',stCom:'Comissionamento',stStart:'Start',stPerf:'Performance',stTrain:'Treinamento',stAud:'Auditoria',stGarantia:'Garantia',stSupervisao:'Supervisão'};
 const CURRENCIES = [
@@ -1371,9 +1371,9 @@ function stripHtml(str){const tmp=document.createElement('div');tmp.innerHTML=st
 function changeMonth(delta){currentMonth+=delta;if(currentMonth>11){currentMonth=0;currentYear++;}if(currentMonth<0){currentMonth=11;currentYear--;}renderCalendar();}
 function goToToday(){currentYear=new Date().getFullYear();currentMonth=new Date().getMonth();renderCalendar();}
 function detectConflicts(){
-    const conflicts=[];
-    data.employees.filter(e=>!e.isOtherSector).forEach(emp=>{
-        const empTrips=data.trips.filter(t=>(t.employeeIds||[]).includes(emp.id)&&t.status!=='Cancelada' && t.start && t.end && !t.dateUndefined);
+const conflicts=[];
+data.employees.filter(e=>!e.isOtherSector).forEach(emp=>{
+const empTrips=data.trips.filter(t=>(t.employeeIds||[]).includes(emp.id)&&t.status!=='Cancelada'&&t.status!=='Concluída' && t.start && t.end && !t.dateUndefined);
         
         // 1. Conflito entre DUAS viagens
         for(let i=0;i<empTrips.length;i++){
@@ -2103,148 +2103,203 @@ inp.value = 'XXXXXX';
 inp.value = '';
 }
 }
-function openProjectModal(id){if(!requirePermission('edit_projects','editar projetos'))return;editingId=id||null;document.getElementById('projectModalTitle').textContent=id?'Editar Projeto':'Novo Projeto';const def={};STAGE_KEYS.forEach(k=>def[k]='NA');if(id){const p=data.projects.find(x=>x.id===id);document.getElementById('projOp').value=p.op;document.getElementById('projOpNA').checked = (p.op === 'XXXXXX');document.getElementById('projCustomerOrder').value=p.customerOrder||'';document.getElementById('projClient').value=p.client;document.getElementById('projMachine').value=p.machine;document.getElementById('projCity').value=p.city||'';document.getElementById('projState').value=p.state||'';document.getElementById('projCountry').value=p.country||'';document.getElementById('projLocationDetails').value=p.locationDetails||'';document.getElementById('projScope').value=p.scope;document.getElementById('projNotes').value=p.notes;document.getElementById('projHasAsm').checked=p.hasAsm||false;document.getElementById('projAsmStart').value=p.asmStart||'';document.getElementById('projAsmEnd').value=p.asmEnd||'';tempContacts = p.contacts ? JSON.parse(JSON.stringify(p.contacts)) : [];renderProjectStages('projectStages',p);}else{['projOp','projClient','projMachine','projCity','projState','projCountry','projLocationDetails','projScope','projNotes','projAsmStart','projAsmEnd','projCustomerOrder'].forEach(id=>document.getElementById(id).value='');document.getElementById('projHasAsm').checked=false;document.getElementById('projOpNA').checked=false;tempContacts=[];renderProjectStages('projectStages',def);}toggleProjOpNA();toggleAsmDates();renderProjectContacts();document.getElementById('projectModal').classList.add('active');}
 function openProjectDetailModal(id) {
-if(!requirePermission('view_projects', 'ver detalhes')) return;
-const p = data.projects.find(x => x.id === id);
-if(!p) return;
-document.getElementById('projectDetailTitle').textContent = `OP ${p.op} - ${p.client}`;
-const projTrips = data.trips.filter(t => t.projectId === id);
-const canSeeCost = hasPerm('view_reports');
-let html = `<div class="form-grid">
-<div class="form-group"><label>OP</label><div>${p.op}</div></div>
-<div class="form-group"><label>Pedido do Cliente</label><div>${p.customerOrder || '-'}</div></div>
-<div class="form-group"><label>Cliente</label><div>${p.client}</div></div>
-<div class="form-group"><label>Máquina</label><div>${p.machine}</div></div>
-<div class="form-group"><label>Local</label><div>${p.location}</div></div>
-<div class="form-group full"><label>Escopo</label><div>${p.scope}</div></div>
-<div class="form-group full"><label>Observações</label><div>${p.notes || '-'}</div></div>
-<div class="form-group full"><label>Montagem</label><div>${p.hasAsm ? `${p.asmStart} a ${p.asmEnd}` : 'N/A'}</div></div>
-<div class="form-group"><label>Status</label><div>${p.status==='Concluído'?'<span class="badge badge-done">Concluído</span>':p.status==='Em garantia'?'<span class="badge badge-warranty">Em garantia</span>':'<span class="badge badge-pending">Em andamento</span>'}</div></div>
-</div>`;
-if(p.contacts && p.contacts.length > 0) {
-html += `<h3 class="section-title" style="margin-top:16px;font-size:15px">Contatos do Cliente</h3><div class="table-container"><table><thead><tr><th>Nome</th><th>Cargo</th><th>E-mail</th><th>Telefone</th></tr></thead><tbody>`;
-p.contacts.forEach(c => {
-html += `<tr><td>${c.name || '-'}</td><td>${c.role || '-'}</td><td>${c.email || '-'}</td><td>${c.phone || '-'}</td></tr>`;
-});
-html += `</tbody></table></div>`;
-}
-
-
-
-
-
-
-// Sempre mostra o Resumo de Viagens
-let totalCost = 0;
-let tripsHtml = `<h3 class="section-title" style="margin-top:16px;font-size:15px; display:flex; justify-content:space-between; align-items:center;">
-Resumo de Viagens
-${hasPerm('edit_trips') ? `<button class="btn btn-primary btn-sm" onclick="closeModal('projectDetailModal'); openTripModalForProject('${p.id}')">+ Criar Viagem</button>` : ''}
-</h3>`;
-
-if (projTrips.length > 0) {
-    tripsHtml += `<div class="table-container"><table><thead><tr><th>Período</th><th>Tipo</th><th>Colaboradores</th><th>Status</th>${canSeeCost?'<th>Custo</th>':''}</tr></thead><tbody>`;
-    projTrips.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{
-        const costNum = t.cost ? parseFloat(t.cost.replace(/\./g,'').replace(',','.')) || 0 : 0;
-        totalCost += costNum;
-        const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);
-        const empsHtml=emps.map(e=>`<span style="display:inline-block;padding:2px 6px;background:${e.color};color:white;border-radius:8px;font-size:10px;margin:1px">${e.name.split(' ')[0]}</span>`).join(' ');
-        
-        // Trata viagem sem data definida
-        let periodDisplay = '';
-        if (t.dateUndefined) {
-            periodDisplay = '<span class="badge badge-warning">Data à definir</span>';
-        } else {
-            periodDisplay = `${t.start} a ${t.end}`;
-        }
-        
-        tripsHtml += `<tr><td>${periodDisplay}</td><td>${t.type}</td><td>${empsHtml}</td><td>${t.status}</td>${canSeeCost?`<td>${t.cost ? 'R$ '+t.cost : '-'}</td>`:''}</tr>`;
-    });
-    tripsHtml += `</tbody></table></div>`;
-    if(canSeeCost) {
-        tripsHtml += `<div style="margin-top:8px; text-align:right; font-weight:700; color:#002745; font-size:14px">Custo Total do Projeto: R$ ${totalCost.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>`;
-    }
-} else {
-    tripsHtml += `<div style="margin-top:8px; padding:16px; background:#f8f9fa; border-radius:6px; text-align:center; color:#6c757d; font-size:13px;">
-        <div style="font-size:32px; margin-bottom:8px;">✈️</div>
-        Nenhuma viagem registrada para este projeto ainda.
-    </div>`;
-}
-html += tripsHtml;
-
-let historyHtml = '<div style="margin-top:16px; font-size:12px; color:#6c757d; border-top:1px solid #e9ecef; padding-top:12px;">';
-if(p.createdBy) historyHtml += `<div>Cadastro realizado por <strong>${emailToName(p.createdBy)}</strong> em ${new Date(p.createdAt).toLocaleString('pt-BR')}</div>`;
-if(p.updatedBy) historyHtml += `<div>Modificação realizada por <strong>${emailToName(p.updatedBy)}</strong> em ${new Date(p.updatedAt).toLocaleString('pt-BR')}</div>`;
-historyHtml += '</div>';
-html += historyHtml;
-document.getElementById('projectDetailBody').innerHTML = html;
-const editBtn = document.getElementById('projectDetailEditBtn');
-editBtn.onclick = () => { closeModal('projectDetailModal'); openProjectModal(id); };
-const completeBtn = document.getElementById('projectDetailCompleteBtn');
-const warrantyBtn = document.getElementById('projectDetailWarrantyBtn');
-if(p.status === 'Concluído') {
-completeBtn.style.display = 'none';
-warrantyBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
-warrantyBtn.onclick = async () => {
-if(!confirm('Abrir garantia deste projeto? O status será alterado para "Em garantia".')) return;
-p.status = 'Em garantia';
-p.updatedBy = currentUser.username;
-p.updatedAt = new Date().toISOString();
-await saveToServer();
-closeModal('projectDetailModal');
-renderAll();
-notify('Projeto em garantia');
-};
-} else if (p.status === 'Em garantia') {
-completeBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
-warrantyBtn.style.display = 'none';
-completeBtn.onclick = async () => {
-if (!currentUser.isDefault) {
-notify('Somente o Admin pode concluir projetos.', 'error');
-return;
-}
-if(!confirm('Marcar este projeto como concluído?')) return;
-p.status = 'Concluído';
-p.updatedBy = currentUser.username;
-p.updatedAt = new Date().toISOString();
-await saveToServer();
-closeModal('projectDetailModal');
-renderAll();
-notify('Projeto concluído');
-};
-} else {
-    completeBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
-    warrantyBtn.style.display = hasPerm('edit_projects') ? '' : 'none'; // <-- Agora o botão de garantia aparece
+    if(!requirePermission('view_projects', 'ver detalhes')) return;
+    const p = data.projects.find(x => x.id === id);
+    if(!p) return;
+    document.getElementById('projectDetailTitle').textContent = `OP ${p.op} - ${p.client}`;
+    const projTrips = data.trips.filter(t => t.projectId === id);
+    const canSeeCost = hasPerm('view_reports');
     
-    completeBtn.onclick = async () => {
-        if (!currentUser.isDefault) {
-            notify('Somente o Admin pode concluir projetos.', 'error');
-            return;
+    let html = `<div class="form-grid">
+    <div class="form-group"><label>OP</label><div>${p.op}</div></div>
+    <div class="form-group"><label>Pedido do Cliente</label><div>${p.customerOrder || '-'}</div></div>
+    <div class="form-group"><label>Cliente</label><div>${p.client}</div></div>
+    <div class="form-group"><label>Máquina</label><div>${p.machine}</div></div>
+    <div class="form-group"><label>Local</label><div>${p.location}</div></div>
+    <div class="form-group full"><label>Escopo</label><div>${p.scope}</div></div>
+    <div class="form-group full"><label>Observações</label><div>${p.notes || '-'}</div></div>
+    <div class="form-group full"><label>Montagem</label><div>${p.hasAsm ? `${p.asmStart} a ${p.asmEnd}` : 'N/A'}</div></div>
+    <div class="form-group"><label>Status</label><div>${p.status==='Concluído'?'<span class="badge badge-done">Concluído</span>':p.status==='Em garantia'?'<span class="badge badge-warranty">Em garantia</span>':'<span class="badge badge-pending">Em andamento</span>'}</div></div>
+    </div>`;
+    
+    if(p.contacts && p.contacts.length > 0) {
+        html += `<h3 class="section-title" style="margin-top:16px;font-size:15px">Contatos do Cliente</h3><div class="table-container"><table><thead><tr><th>Nome</th><th>Cargo</th><th>E-mail</th><th>Telefone</th></tr></thead><tbody>`;
+        p.contacts.forEach(c => {
+            html += `<tr><td>${c.name || '-'}</td><td>${c.role || '-'}</td><td>${c.email || '-'}</td><td>${c.phone || '-'}</td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+    }
+    
+    // --- NOVO BLOCO: STATUS DAS ETAPAS DO PROJETO ---
+    const projectStages = STAGE_KEYS.filter(k => p[k] && p[k] !== 'NA');
+    if (projectStages.length > 0) {
+        let stagesSummaryHtml = `<h3 class="section-title" style="margin-top:16px;font-size:15px">Status das Etapas do Projeto</h3>
+        <div class="stage-grid">`;
+        
+        projectStages.forEach(k => {
+            const label = STAGE_LABELS[k];
+            const stageStatus = p[k];
+            
+            // Conta quantas viagens realizaram essa etapa
+            const tripsWithStage = projTrips.filter(t => t.stages && t.stages[k] === 'FEITO');
+            const tripsPartial = projTrips.filter(t => t.stages && t.stages[k] === 'PARCIAL');
+            const tripsNotDone = projTrips.filter(t => t.stages && t.stages[k] === 'NAO_FEITO');
+            
+            let statusBadge = '';
+            let statusText = '';
+            
+            if (stageStatus === 'FEITO') {
+                statusBadge = '<span class="badge badge-done">Realizado</span>';
+                statusText = `${tripsWithStage.length} viagem(ns) concluíram`;
+            } else if (stageStatus === 'NAO_FEITO') {
+                statusBadge = '<span class="badge badge-no">Não realizado</span>';
+                statusText = 'Dispensado no projeto';
+            } else if (stageStatus === 'PARCIAL') {
+                statusBadge = '<span class="badge badge-partial">Parcial</span>';
+                statusText = `${tripsPartial.length} viagem(ns) parcial, ${tripsWithStage.length} concluíram`;
+            } else if (stageStatus === 'FUTURO') {
+                statusBadge = '<span class="badge badge-pending">Futuro</span>';
+                statusText = 'Aguardando execução';
+            } else if (stageStatus === 'NECESSARIO') {
+                statusBadge = '<span class="badge badge-warning">Necessário</span>';
+                statusText = `${tripsWithStage.length} de ${projTrips.length} viagem(ns) realizaram`;
+            }
+            
+            stagesSummaryHtml += `<div class="stage-item" style="position:relative;">
+                <label>${label}</label>
+                <div style="margin-top:4px;">${statusBadge}</div>
+                <div style="font-size:10px; color:#6c757d; margin-top:4px;">${statusText}</div>
+            </div>`;
+        });
+        
+        stagesSummaryHtml += `</div>`;
+        html += stagesSummaryHtml;
+    }
+    // -----------------------------------------------
+    
+    // Sempre mostra o Resumo de Viagens
+    let totalCost = 0;
+    let tripsHtml = `<h3 class="section-title" style="margin-top:16px;font-size:15px; display:flex; justify-content:space-between; align-items:center;">
+    Resumo de Viagens
+    ${hasPerm('edit_trips') ? `<button class="btn btn-primary btn-sm" onclick="closeModal('projectDetailModal'); openTripModalForProject('${p.id}')">+ Criar Viagem</button>` : ''}
+    </h3>`;
+    
+    if (projTrips.length > 0) {
+        tripsHtml += `<div class="table-container"><table><thead><tr><th>Período</th><th>Tipo</th><th>Colaboradores</th><th>Status</th>${canSeeCost?'<th>Custo</th>':''}</tr></thead><tbody>`;
+        projTrips.sort((a,b)=>a.start.localeCompare(b.start)).forEach(t=>{
+            const costNum = t.cost ? parseFloat(t.cost.replace(/\./g,'').replace(',','.')) || 0 : 0;
+            totalCost += costNum;
+            const emps=(t.employeeIds||[]).map(id=>data.employees.find(e=>e.id===id)).filter(Boolean);
+            const empsHtml=emps.map(e=>`<span style="display:inline-block;padding:2px 6px;background:${e.color};color:white;border-radius:8px;font-size:10px;margin:1px">${e.name.split(' ')[0]}</span>`).join(' ');
+            let periodDisplay = '';
+            if (t.dateUndefined) {
+                periodDisplay = '<span class="badge badge-warning">Data à definir</span>';
+            } else {
+                periodDisplay = `${t.start} a ${t.end}`;
+            }
+            tripsHtml += `<tr><td>${periodDisplay}</td><td>${t.type}</td><td>${empsHtml}</td><td>${t.status}</td>${canSeeCost?`<td>${t.cost ? 'R$ '+t.cost : '-'}</td>`:''}</tr>`;
+        });
+        tripsHtml += `</tbody></table></div>`;
+        if(canSeeCost) {
+            tripsHtml += `<div style="margin-top:8px; text-align:right; font-weight:700; color:#002745; font-size:14px">Custo Total do Projeto: R$ ${totalCost.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>`;
         }
-        if(!confirm('Marcar este projeto como concluído?')) return;
-        p.status = 'Concluído';
-        p.updatedBy = currentUser.username;
-        p.updatedAt = new Date().toISOString();
-        await saveToServer();
-        closeModal('projectDetailModal');
-        renderAll();
-        notify('Projeto concluído');
-    };
-
-    // --- AÇÃO DO BOTÃO DE GARANTIA ---
-    warrantyBtn.onclick = async () => {
-        if(!confirm('Abrir garantia deste projeto? O status será alterado para "Em garantia".')) return;
-        p.status = 'Em garantia';
-        p.updatedBy = currentUser.username;
-        p.updatedAt = new Date().toISOString();
-        await saveToServer();
-        closeModal('projectDetailModal');
-        renderAll();
-        notify('Projeto em garantia');
-    };
-    // ---------------------------------
-}
-document.getElementById('projectDetailModal').classList.add('active');
+    } else {
+        tripsHtml += `<div style="margin-top:8px; padding:16px; background:#f8f9fa; border-radius:6px; text-align:center; color:#6c757d; font-size:13px;">
+            <div style="font-size:32px; margin-bottom:8px;">✈️</div>
+            Nenhuma viagem registrada para este projeto ainda.
+        </div>`;
+    }
+    html += tripsHtml;
+    
+    let historyHtml = '<div style="margin-top:16px; font-size:12px; color:#6c757d; border-top:1px solid #e9ecef; padding-top:12px;">';
+    if(p.createdBy) historyHtml += `<div>Cadastro realizado por <strong>${emailToName(p.createdBy)}</strong> em ${new Date(p.createdAt).toLocaleString('pt-BR')}</div>`;
+    if(p.updatedBy) historyHtml += `<div>Modificação realizada por <strong>${emailToName(p.updatedBy)}</strong> em ${new Date(p.updatedAt).toLocaleString('pt-BR')}</div>`;
+    historyHtml += '</div>';
+    html += historyHtml;
+    
+    document.getElementById('projectDetailBody').innerHTML = html;
+    
+    const editBtn = document.getElementById('projectDetailEditBtn');
+    editBtn.onclick = () => { closeModal('projectDetailModal'); openProjectModal(id); };
+    
+    const completeBtn = document.getElementById('projectDetailCompleteBtn');
+    const warrantyBtn = document.getElementById('projectDetailWarrantyBtn');
+    
+    if(p.status === 'Concluído') {
+        completeBtn.style.display = 'none';
+        warrantyBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
+        warrantyBtn.onclick = async () => {
+            if(!confirm('Abrir garantia deste projeto? O status será alterado para "Em garantia".')) return;
+            p.status = 'Em garantia';
+            p.updatedBy = currentUser.username;
+            p.updatedAt = new Date().toISOString();
+            await saveToServer();
+            closeModal('projectDetailModal');
+            renderAll();
+            notify('Projeto em garantia');
+        };
+    } else if (p.status === 'Em garantia') {
+        completeBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
+        warrantyBtn.style.display = 'none';
+        completeBtn.onclick = async () => {
+            if (!currentUser.isDefault) {
+                notify('Somente o Admin pode concluir projetos.', 'error');
+                return;
+            }
+            const requiredStages = STAGE_KEYS.filter(k => p[k] && p[k] !== 'NA');
+            const pendingStages = requiredStages.filter(k => p[k] !== 'FEITO' && p[k] !== 'NAO_FEITO');
+            if (pendingStages.length > 0) {
+                const pendingLabels = pendingStages.map(k => STAGE_LABELS[k]).join(', ');
+                notify(`Não é possível concluir. As seguintes etapas precisam estar "Realizado" ou "Não realizado": ${pendingLabels}`, 'error');
+                return;
+            }
+            if(!confirm('Marcar este projeto como concluído?')) return;
+            p.status = 'Concluído';
+            p.updatedBy = currentUser.username;
+            p.updatedAt = new Date().toISOString();
+            await saveToServer();
+            closeModal('projectDetailModal');
+            renderAll();
+            notify('Projeto concluído');
+        };
+    } else {
+        completeBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
+        warrantyBtn.style.display = hasPerm('edit_projects') ? '' : 'none';
+        completeBtn.onclick = async () => {
+            if (!currentUser.isDefault) {
+                notify('Somente o Admin pode concluir projetos.', 'error');
+                return;
+            }
+            const requiredStages = STAGE_KEYS.filter(k => p[k] && p[k] !== 'NA');
+            const pendingStages = requiredStages.filter(k => p[k] !== 'FEITO' && p[k] !== 'NAO_FEITO');
+            if (pendingStages.length > 0) {
+                const pendingLabels = pendingStages.map(k => STAGE_LABELS[k]).join(', ');
+                notify(`Não é possível concluir. As seguintes etapas precisam estar "Realizado" ou "Não realizado": ${pendingLabels}`, 'error');
+                return;
+            }
+            if(!confirm('Marcar este projeto como concluído?')) return;
+            p.status = 'Concluído';
+            p.updatedBy = currentUser.username;
+            p.updatedAt = new Date().toISOString();
+            await saveToServer();
+            closeModal('projectDetailModal');
+            renderAll();
+            notify('Projeto concluído');
+        };
+        warrantyBtn.onclick = async () => {
+            if(!confirm('Abrir garantia deste projeto? O status será alterado para "Em garantia".')) return;
+            p.status = 'Em garantia';
+            p.updatedBy = currentUser.username;
+            p.updatedAt = new Date().toISOString();
+            await saveToServer();
+            closeModal('projectDetailModal');
+            renderAll();
+            notify('Projeto em garantia');
+        };
+    }
+    
+    document.getElementById('projectDetailModal').classList.add('active');
 }
 async function saveProject(){if(!requirePermission('edit_projects','salvar projetos'))return;
 const city = document.getElementById('projCity').value;
@@ -2281,48 +2336,116 @@ function toggleTripDateUndefined() {
 }
 
 function renderUndefinedDateTrips() {
-  const container = document.getElementById('undefinedDateTripsContainer');
-  if (!container) return;
-  
-  const undefinedTrips = data.trips
-    .filter(t => t.dateUndefined && t.status !== 'Cancelada')
-    .sort((a, b) => {
-        const pa = data.projects.find(p => p.id === a.projectId);
-        const pb = data.projects.find(p => p.id === b.projectId);
-        const opA = pa?.op || '';
-        const opB = pb?.op || '';
-        const numA = parseInt(opA.replace(/\D/g, '')) || 0;
-        const numB = parseInt(opB.replace(/\D/g, '')) || 0;
-        if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
-        return opA.localeCompare(opB, 'pt-BR', {numeric: true});
+    const container = document.getElementById('undefinedDateTripsContainer');
+    if (!container) return;
+
+    const undefinedTrips = data.trips
+        .filter(t => t.dateUndefined && t.status !== 'Cancelada')
+        .sort((a, b) => {
+            const pa = data.projects.find(p => p.id === a.projectId);
+            const pb = data.projects.find(p => p.id === b.projectId);
+            const opA = pa?.op || '';
+            const opB = pb?.op || '';
+            const numA = parseInt(opA.replace(/\D/g, '')) || 0;
+            const numB = parseInt(opB.replace(/\D/g, '')) || 0;
+            if (numA !== numB && numA > 0 && numB > 0) return numA - numB;
+            return opA.localeCompare(opB, 'pt-BR', {numeric: true});
+        });
+
+    if (undefinedTrips.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = `<div style="background:#fff3cd;border:1px solid #f0ad4e;border-radius:8px;padding:12px;margin-bottom:16px;">
+        <div onclick="toggleUndefinedTrips()" style="display:flex;align-items:center;justify-content:space-between;padding:4px 0 8px 0;cursor:pointer;user-select:none;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:20px;">⚠️</span>
+                <strong style="color:#856404;font-size:14px;">Viagens com data pendente (${undefinedTrips.length})</strong>
+            </div>
+            <span id="undefinedTripsArrow" style="font-size:20px;font-weight:700;color:#856404;transition:all 0.2s;">+</span>
+        </div>
+        <div id="undefinedDateTripsContent" style="display:none;padding-top:8px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">`;
+
+    undefinedTrips.forEach(t => {
+        const proj = data.projects.find(p => p.id === t.projectId);
+        const emps = (t.employeeIds || []).map(id => data.employees.find(e => e.id === id)).filter(Boolean);
+
+        // 1. Constrói as partes discretas (Máquina e Local)
+        const metaParts = [];
+        if (proj?.machine) metaParts.push(`Máquina: ${proj.machine}`);
+        if (proj?.city || proj?.state) {
+            const loc = [proj.city, proj.state].filter(Boolean).join(' - ');
+            metaParts.push(`Local: ${loc}`);
+        }
+
+        // 2. Formatação discreta para Responsável
+        const respInfo = emps.length > 0
+            ? emps.map(e => `<span style="display:inline-block;padding:1px 5px;background:${e.color};color:white;border-radius:6px;font-size:9px;margin-left:2px">${e.name.split(' ')[0]}</span>`).join(' ')
+            : '<span style="color:#f0ad4e; font-weight:600; font-size:11px;">Pendente de atribuição</span>';
+
+        const respText = hasPerm('edit_trips') ? `Responsável: ${respInfo}` : '';
+
+        // 3. Observações da viagem
+        const obsHtml = t.notes
+            ? `<div style="margin-top:6px; font-size:11px; color:#495057; background:#f8f9fa; padding:6px; border-radius:4px; border:1px solid #e9ecef;"><strong>Obs:</strong> ${t.notes}</div>`
+            : '';
+
+        // 4. Etapas do projeto com status
+        let stagesHtml = '';
+        if (proj) {
+            let badges = '';
+            STAGE_KEYS.forEach(k => {
+                const val = proj[k];
+                if (val && val !== 'NA') {
+                    const label = STAGE_LABELS[k];
+                    let badgeClass = 'badge-na';
+                    if (val === 'NECESSARIO') badgeClass = 'badge-warning';
+                    else if (val === 'FEITO') badgeClass = 'badge-done';
+                    else if (val === 'NAO_FEITO') badgeClass = 'badge-no';
+                    else if (val === 'FUTURO') badgeClass = 'badge-pending';
+                    else if (val === 'PARCIAL') badgeClass = 'badge-partial';
+                    const opt = STAGE_OPTIONS.find(o => o.value === val);
+                    const optLabel = opt ? opt.label : val;
+                    badges += `<span class="badge ${badgeClass}" style="font-size:10px; margin:2px;">${label}: ${optLabel}</span> `;
+                }
+            });
+            if (badges) {
+                stagesHtml = `<div style="margin-top:6px; font-size:11px;">${badges}</div>`;
+            }
+        }
+
+        // Monta o card com TUDO na primeira linha, usando flex-wrap para não quebrar em telas pequenas
+        html += `<div style="padding:10px;background:white;border-radius:6px;border-left:4px solid #f0ad4e;font-size:12px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.05);" onclick="openTripDetailModal('${t.id}')">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <span style="font-weight: 700; color: #002745; font-size: 13px;">${proj?.op || '-'} - ${proj?.client || '-'}</span>
+                ${metaParts.length > 0 ? `<span style="color: #6c757d; font-size: 11px;">| ${metaParts.join(' | ')}</span>` : ''}
+                ${respText ? `<span style="color: #6c757d; font-size: 11px;">| ${respText}</span>` : ''}
+            </div>
+            ${stagesHtml}
+            ${obsHtml}
+        </div>`;
     });
-  
-  if (undefinedTrips.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
-  
-  let html = `<div style="background:#fff3cd;border:1px solid #f0ad4e;border-radius:8px;padding:12px;margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <span style="font-size:20px;">⚠️</span>
-      <strong style="color:#856404;font-size:14px;">Viagens com data pendente (${undefinedTrips.length})</strong>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;">`;
-  
-  undefinedTrips.forEach(t => {
-    const proj = data.projects.find(p => p.id === t.projectId);
-    const emps = (t.employeeIds || []).map(id => data.employees.find(e => e.id === id)).filter(Boolean);
-    const empsHtml = emps.map(e => `<span style="display:inline-block;padding:2px 6px;background:${e.color};color:white;border-radius:8px;font-size:10px;margin:1px">${e.name.split(' ')[0]}</span>`).join(' ');
-    
-    html += `<div style="padding:8px;background:white;border-radius:4px;border-left:3px solid #f0ad4e;font-size:12px;cursor: pointer!important;" onclick="openTripDetailModal('${t.id}')">
-      <strong>${proj?.op || '-'} - ${proj?.client || '-'}</strong> ${hasPerm('edit_trips') ? `<br>
-      <span style="color:#6c757d">Colaboradores: ${empsHtml || 'Nenhum'}</span>` : ''}
-    </div>`;
-  });
-  
-  html += `</div></div>`;
-  container.innerHTML = html;
+
+    html += `</div></div></div>`;
+    container.innerHTML = html;
 }
+
+function toggleUndefinedTrips() {
+    const content = document.getElementById('undefinedDateTripsContent');
+    const arrow = document.getElementById('undefinedTripsArrow');
+    if (!content || !arrow) return;
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        arrow.textContent = '−';
+    } else {
+        content.style.display = 'none';
+        arrow.textContent = '+';
+    }
+}
+
 function checkTripConflicts(){
 conflictIgnored = false;
 const start=document.getElementById('tripStart').value;
@@ -2662,26 +2785,26 @@ currentTripExpenses.reduce((s, e) => s + (e.currency === 'BRL' ? e.amount : (e.a
 
 if(totalPreviewEl) totalPreviewEl.textContent = totalPreview;
 if(costEl) costEl.value = totalPreview;
-// --- CARREGAR ETAPAS PREVISTAS NA VIAGEM ---
+// --- CARREGAR ETAPAS PREVISTAS NA VIAGEM (EXCLUINDO AS JÁ FEITAS) ---
 const stagesList = document.getElementById('tripCompleteStagesList');
 const stagesGroup = document.getElementById('tripCompleteStagesGroup');
 
 if (t && t.stages) {
-    // Filtra apenas as etapas que foram previstas (diferentes de "NA")
-    const plannedStages = STAGE_KEYS.filter(k => t.stages[k] && t.stages[k] !== 'NA');
+    // Filtra apenas as etapas previstas que NÃO estão marcadas como 'FEITO' e não são 'NA'
+    const pendingStages = STAGE_KEYS.filter(k => t.stages[k] && t.stages[k] !== 'NA' && t.stages[k] !== 'FEITO');
     
-    if (plannedStages.length > 0) {
-        stagesList.innerHTML = plannedStages.map(k => {
+    if (pendingStages.length > 0) {
+        stagesList.innerHTML = pendingStages.map(k => {
             const label = STAGE_LABELS[k];
             const currentVal = t.stages[k];
-            // Opções SEM "N/A"
+            // Opções SEM "N/A" e SEM "FEITO" no select (pois o objetivo é atualizar o que falta)
             return `<div style="padding:8px; background:#f8f9fa; border-radius:6px; border:1px solid #e9ecef;">
                 <label style="font-size:12px; font-weight:600; color:#002745; display:block; margin-bottom:4px;">${label}</label>
                 <select id="tripCompleteStage_${k}" style="width:100%; padding:4px; font-size:11px;">
-                    <option value="FEITO" ${currentVal==='FEITO'?'selected':''}>Feito</option>
-                    <option value="PARCIAL" ${currentVal==='PARCIAL'?'selected':''}>Parcial</option>
-                    <option value="NAO_FEITO" ${currentVal==='NAO_FEITO'?'selected':''}>Não feito</option>
-                    <option value="FUTURO" ${currentVal==='FUTURO'?'selected':''}>Futuro</option>
+<option value="FEITO" ${currentVal==='FEITO'?'selected':''}>Realizado</option>
+<option value="PARCIAL" ${currentVal==='PARCIAL'?'selected':''}>Parcial</option>
+<option value="NAO_FEITO" ${currentVal==='NAO_FEITO'?'selected':''}>Não realizado</option>
+<option value="FUTURO" ${currentVal==='FUTURO'?'selected':''}>Futuro</option>
                 </select>
             </div>`;
         }).join('');
@@ -2692,6 +2815,7 @@ if (t && t.stages) {
 } else {
     stagesGroup.style.display = 'none';
 }
+// ----------------------------------------------------------------------
 
 const modal = document.getElementById('tripCompleteModal');
 if(modal) modal.classList.add('active');
@@ -2745,6 +2869,52 @@ if(!end){notify('Informe a data de retorno','error');return;}
 const reportNumber = document.getElementById('tripReportNA').checked ? 'N/A' : document.getElementById('tripReportNumber').value;
 const vehicleInfo = document.getElementById('tripVehicleNA').checked ? 'N/A' : document.getElementById('tripVehicleInfo').value;
 const notes=document.getElementById('tripCompleteNotes').value;
+// --- RESUMO DAS ETAPAS DO PROJETO ---
+const projectStages = STAGE_KEYS.filter(k => p[k] && p[k] !== 'NA');
+if (projectStages.length > 0) {
+    let stagesSummaryHtml = `<h3 class="section-title" style="margin-top:16px;font-size:15px">Status das Etapas do Projeto</h3>
+    <div class="stage-grid">`;
+    
+    projectStages.forEach(k => {
+        const label = STAGE_LABELS[k];
+        const requiredStatus = p[k];
+        
+        // Conta quantas viagens realizaram essa etapa
+        const tripsWithStage = projTrips.filter(t => t.stages && t.stages[k] === 'FEITO');
+        const tripsPartial = projTrips.filter(t => t.stages && t.stages[k] === 'PARCIAL');
+        const tripsNotDone = projTrips.filter(t => t.stages && t.stages[k] === 'NAO_FEITO');
+        
+        let statusBadge = '';
+        let statusText = '';
+        
+        if (requiredStatus === 'FEITO') {
+            statusBadge = '<span class="badge badge-done">Realizado</span>';
+            statusText = `${tripsWithStage.length} viagem(ns) concluíram`;
+        } else if (requiredStatus === 'NAO_FEITO') {
+            statusBadge = '<span class="badge badge-no">Não realizado</span>';
+            statusText = 'Dispensado no projeto';
+        } else if (requiredStatus === 'PARCIAL') {
+            statusBadge = '<span class="badge badge-partial">Parcial</span>';
+            statusText = `${tripsPartial.length} viagem(ns) parcial, ${tripsWithStage.length} concluíram`;
+        } else if (requiredStatus === 'FUTURO') {
+            statusBadge = '<span class="badge badge-pending">Futuro</span>';
+            statusText = 'Aguardando execução';
+        } else if (requiredStatus === 'NECESSARIO') {
+            statusBadge = '<span class="badge badge-warning">Necessário</span>';
+            statusText = `${tripsWithStage.length} de ${projTrips.length} viagem(ns) realizaram`;
+        }
+        
+        stagesSummaryHtml += `<div class="stage-item" style="position:relative;">
+            <label>${label}</label>
+            <div style="margin-top:4px;">${statusBadge}</div>
+            <div style="font-size:10px; color:#6c757d; margin-top:4px;">${statusText}</div>
+        </div>`;
+    });
+    
+    stagesSummaryHtml += `</div>`;
+    html += stagesSummaryHtml;
+}
+// ------------------------------------
 let totalCost = 0;
 if (currentTripExpenses.length > 0) {
 totalCost = currentTripExpenses.reduce((sum, exp) => {
