@@ -104,7 +104,7 @@ body { background: #f5f7fa; color: #1a1a1a; min-height: 100vh; }
 .day-number { font-weight: 700; margin-bottom: 4px; font-size: 12px; color: #002745; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
 .cal-event { padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: white; font-weight: 500; position: relative; z-index: 2; }
 .cal-event.holiday-event { background: #dc3545; }
-.cal-event.vacation { background: #6f42c1; }
+.cal-event.vacation { background: #6c757d; }
 .cal-event.unavailable { background: #6c757d; }
 .trip-bar-container { position: relative; height: 18px; margin: 2px 0; z-index: 2; }
 .trip-bar { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
@@ -2103,6 +2103,7 @@ inp.value = 'XXXXXX';
 inp.value = '';
 }
 }
+function openProjectModal(id){if(!requirePermission('edit_projects','editar projetos'))return;editingId=id||null;document.getElementById('projectModalTitle').textContent=id?'Editar Projeto':'Novo Projeto';const def={};STAGE_KEYS.forEach(k=>def[k]='NA');if(id){const p=data.projects.find(x=>x.id===id);document.getElementById('projOp').value=p.op;document.getElementById('projOpNA').checked = (p.op === 'XXXXXX');document.getElementById('projCustomerOrder').value=p.customerOrder||'';document.getElementById('projClient').value=p.client;document.getElementById('projMachine').value=p.machine;document.getElementById('projCity').value=p.city||'';document.getElementById('projState').value=p.state||'';document.getElementById('projCountry').value=p.country||'';document.getElementById('projLocationDetails').value=p.locationDetails||'';document.getElementById('projScope').value=p.scope;document.getElementById('projNotes').value=p.notes;document.getElementById('projHasAsm').checked=p.hasAsm||false;document.getElementById('projAsmStart').value=p.asmStart||'';document.getElementById('projAsmEnd').value=p.asmEnd||'';tempContacts = p.contacts ? JSON.parse(JSON.stringify(p.contacts)) : [];renderProjectStages('projectStages',p);}else{['projOp','projClient','projMachine','projCity','projState','projCountry','projLocationDetails','projScope','projNotes','projAsmStart','projAsmEnd','projCustomerOrder'].forEach(id=>document.getElementById(id).value='');document.getElementById('projHasAsm').checked=false;document.getElementById('projOpNA').checked=false;tempContacts=[];renderProjectStages('projectStages',def);}toggleProjOpNA();toggleAsmDates();renderProjectContacts();document.getElementById('projectModal').classList.add('active');}
 function openProjectDetailModal(id) {
     if(!requirePermission('view_projects', 'ver detalhes')) return;
     const p = data.projects.find(x => x.id === id);
